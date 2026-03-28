@@ -1,0 +1,45 @@
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+# ── Pipeline data ────────────────────────────────────────────────────────────
+# PDFs are re-downloadable via 01_download_pdfs.py — do not commit binaries
+scripts/data/raw_pdfs/
+# Extracted page JSONs and cropped images are pipeline intermediates
+scripts/data/extracted/
+# Per-problem JSONs before DB import (large, regeneratable)
+scripts/data/problems/
+
+# manifest.json IS tracked — it records what has been downloaded/classified
+# (do not add scripts/data/manifest.json here)
+
+# ── Environment ──────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Next.js ──────────────────────────────────────────────────────────────────
+.next/
+out/
+node_modules/
+
+# ── Claude Code ──────────────────────────────────────────────────────────────
+# settings.local.json is machine-specific (tool permissions) — not for repo
+.claude/settings.local.json
+
+# ── OS / editor ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
