@@ -55,26 +55,38 @@ export default async function FeladatsorDetailPage({ params }: { params: { slug:
   const partLabel    = exam_part ? ` · ${exam_part}. rész` : "";
   const title        = `${year} ${sessionLabel} · ${typeLabel}${partLabel}`;
 
+  const isEmelt = exam_type === "emelt";
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Link href="/feladatsor" className="no-print text-sm text-slate-400 hover:text-navy-600 dark:hover:text-white transition-colors">
-              ← Feladatsorok
-            </Link>
+    <div className="space-y-8">
+
+      {/* Back link */}
+      <Link
+        href="/feladatsor"
+        className="no-print inline-flex items-center gap-1.5 text-sm text-slate-400 dark:text-slate-500
+                   hover:text-navy-600 dark:hover:text-white transition-colors group"
+      >
+        <span className="group-hover:-translate-x-0.5 transition-transform">←</span>
+        Vissza a feladatsorokhoz
+      </Link>
+
+      {/* Header card */}
+      <div className={`relative rounded-2xl overflow-hidden p-6 sm:p-8
+        ${isEmelt
+          ? "bg-gradient-to-br from-crimson-700 to-crimson-900 dark:from-crimson-900 dark:to-[#1a0505]"
+          : "bg-gradient-to-br from-navy-600 to-navy-800 dark:from-navy-800 dark:to-[#060d1a]"
+        }`}>
+        {/* Subtle dot grid */}
+        <div className="absolute inset-0 dot-grid opacity-20" />
+        <div className="relative z-10 flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="text-white/50 text-xs font-medium uppercase tracking-widest mb-2">{year}</div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white print:text-black">{title}</h1>
+            <p className="text-white/60 text-sm mt-2">{problems.length} feladat</p>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white print:text-black">{title}</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{problems.length} feladat</p>
-        </div>
-        <div className="no-print flex items-center gap-2">
-          <span className={`badge text-white shadow-sm text-sm py-1.5 px-3 ${
-            exam_type === "emelt" ? "bg-crimson-600" : "bg-navy-600"
-          }`}>
-            {typeLabel}
-          </span>
-          <PrintButton />
+          <div className="no-print flex items-center gap-2 mt-1">
+            <PrintButton />
+          </div>
         </div>
       </div>
 

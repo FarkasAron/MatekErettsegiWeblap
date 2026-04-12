@@ -29,16 +29,16 @@ function ProblemRow({ problem }: { problem: Problem }) {
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-3 px-4 py-3.5
-                   hover:bg-slate-50 dark:hover:bg-slate-800/50
+                   hover:bg-navy-50/50 dark:hover:bg-white/[0.03]
                    text-left transition-colors group"
       >
         {/* Arrow */}
-        <span className={`text-slate-300 dark:text-slate-600 transition-transform duration-200 text-xs ${open ? "rotate-90" : ""}`}>
+        <span className={`text-slate-300 dark:text-slate-600 transition-transform duration-200 text-xs ${open ? "rotate-90 text-navy-500 dark:text-navy-400" : ""}`}>
           ▶
         </span>
 
         {/* Title */}
-        <span className="flex-1 text-sm font-medium text-slate-800 dark:text-slate-200 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+        <span className="flex-1 text-sm font-medium text-slate-800 dark:text-slate-200 group-hover:text-navy-600 dark:group-hover:text-navy-300 transition-colors">
           {title}
         </span>
 
@@ -73,18 +73,18 @@ function ProblemRow({ problem }: { problem: Problem }) {
 
       {/* Expanded content */}
       {open && (
-        <div className="px-10 pb-5 animate-fade-in">
+        <div className="px-10 pb-6 pt-1 animate-fade-in border-t border-slate-100 dark:border-slate-800">
           {problem.problem_image_url ? (
             <Image
               src={problem.problem_image_url}
               alt={title}
               width={900}
               height={500}
-              className="w-full max-w-2xl h-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"
+              className="w-full max-w-2xl h-auto rounded-xl border border-slate-200 dark:border-slate-700/60 shadow-md mt-4"
               unoptimized
             />
           ) : (
-            <p className="text-sm text-slate-400">Nincs elérhető kép.</p>
+            <p className="text-sm text-slate-400 mt-4">Nincs elérhető kép.</p>
           )}
           {problem.topic_tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">

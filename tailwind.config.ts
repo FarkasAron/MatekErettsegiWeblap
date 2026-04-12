@@ -34,6 +34,9 @@ const config: Config = {
         "float":      "float 4s ease-in-out infinite",
         "stamp":      "stamp 0.6s cubic-bezier(0.175,0.885,0.32,1.275) both",
         "spin-slow":  "spin 12s linear infinite",
+        "aurora-1":   "aurora1 14s ease-in-out infinite",
+        "aurora-2":   "aurora2 18s ease-in-out infinite",
+        "aurora-3":   "aurora3 11s ease-in-out infinite",
       },
       keyframes: {
         fadeIn:  { "0%": { opacity: "0" },                                "100%": { opacity: "1" } },

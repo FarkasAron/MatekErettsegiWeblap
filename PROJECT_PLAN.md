@@ -91,8 +91,8 @@ Unlimited deployments, 100 GB bandwidth/month, automatic HTTPS, CDN-served stati
 | `problem_number` | `smallint` | NO | Official number within the exam |
 | `sub_part` | `varchar(4)` | YES | Sub-label: 'a', 'b', 'c' — NULL for single-part problems |
 | `problem_image_url` | `text` | YES | Supabase Storage URL for the full-problem region crop PNG. This is the primary display artifact — the website shows this image, not rendered text. |
+| `solution_image_url` | `text` | YES | Supabase Storage URL for the solution region crop PNG from the corresponding megoldások PDF. One image per problem number — all sub-parts (a/b/c) share the same solution image, consistent with `problem_image_url`. NULL if the solution PDF has not been processed. Displayed inside `<SolutionPanel>` behind the show/hide toggle. |
 | `statement_text` | `text` | NO | Raw extracted text from PyMuPDF/OCR. Not displayed on the website. Kept for potential future full-text search. Quality varies — no manual correction required. |
-| `solution_text` | `text` | YES | Official solution text (future use) |
 | `max_points` | `smallint` | YES | Official maximum point value |
 | `difficulty_level` | `enum('könnyű','közepes','nehéz')` | YES | Reviewer-assigned difficulty |
 | `topic_tags` | `text[]` | NO | Array of canonical témakör slugs, assigned per sub-part during review |
@@ -230,6 +230,8 @@ PyMuPDF extracts full layout trees per page: all text blocks with their bounding
 
 For **scanned PDFs** (no extractable text — rare, mostly pre-2008): Tesseract OCR is applied automatically. The `ocr_used` flag is set on all resulting problems.
 
+**Solution PDFs:** Step 3 extracts solution PDFs (`is_solution_pdf=True`) using the same process. Their page JSONs land in `extracted/{solution_pdf_stem}/`. Step 4 skips them (no sub-part splitting needed); Step 5b handles them separately.
+
 **Human review:** None at this step. Pipeline logs which files used OCR.
 
 **Estimated runtime:** 1–3 seconds per digital PDF; 15–30 seconds per page for OCR mode.
@@ -271,6 +273,27 @@ The crop covers the horizontal full width of the text area (excluding page margi
 
 **Why image-only (not text):** PyMuPDF text extraction is reliable for plain Hungarian prose but breaks down for equations, superscripts, and diagrams. Rather than requiring manual text correction for every problem, the image is the primary display artifact. The extracted `statement_text` (imperfect) is stored in the DB for potential future search use but never displayed.
 
+**Note:** Step 5 processes only feladatsor PDFs (`is_solution_pdf=False`). Solution PDFs are handled in Step 5b.
+
+**Human review:** None at this step.
+
+---
+
+### Step 5b — Solution Region Cropping
+
+**Tool:** PyMuPDF
+**Input:** Solution PDFs already extracted by Step 3 (`extracted/{solution_pdf_stem}/page_*.json`) + original solution PDFs
+**Output:** One PNG per problem number saved to `scripts/data/problems/{solution_pdf_stem}/crops/`
+**Script:** `scripts/05b_crop_solutions.py`
+
+Applies the same bounding-box cropping logic as Step 5 but to the corresponding megoldások PDF. Problem boundaries in solution PDFs are detected using the same heuristic — bold `N.` at the left margin — because the official megoldások follow the same numbered layout as the feladatsor.
+
+**Granularity:** One solution PNG per problem number. All sub-parts (a/b/c) of a problem share the same solution image, consistent with `problem_image_url`. This is correct because Hungarian solution PDFs present the full solution per problem number in one continuous block, not split by sub-part.
+
+**Matching to rows:** The solution crop is matched to DB rows during Step 6 by `(year, exam_type, problem_number)` — not by filename pairing, since PDF naming conventions vary across years.
+
+**Missing solutions:** If a solution PDF was not downloaded (e.g. older years with no digital megoldások), no crop is produced and `solution_image_url` stays NULL on those rows.
+
 **Human review:** None at this step.
 
 ---
@@ -278,11 +301,11 @@ The crop covers the horizontal full width of the text area (excluding page margi
 ### Step 6 — Supabase Import
 
 **Tool:** Python `supabase-py`
-**Input:** All problem JSON files + crop PNG files from Step 5
-**Output:** All problems upserted to Supabase `problems` table with `human_reviewed = false`; crop PNGs uploaded to Supabase Storage (`problem-images` bucket)
+**Input:** All problem JSON files + problem crop PNGs from Step 5 + solution crop PNGs from Step 5b
+**Output:** All problems upserted to Supabase `problems` table with `human_reviewed = false`; all crop PNGs uploaded to Supabase Storage (`problem-images` bucket)
 **Script:** `scripts/06_import_to_db.py`
 
-Uploads every crop PNG to `{pdf_stem}/crops/{filename}` in Supabase Storage, then upserts each problem row with `problem_image_url` pointing to the public CDN URL. Re-running is safe (upsert on `source_key`). Rows already reviewed (`human_reviewed = true`) are skipped to protect review work.
+Uploads every problem crop PNG to `{pdf_stem}/crops/{filename}` and sets `problem_image_url`. Then, for each solution crop (matched by `(year, exam_type, problem_number)`), uploads the solution PNG and sets `solution_image_url` on all matching rows for that problem number. Re-running is safe (upsert on `source_key`). Rows already reviewed (`human_reviewed = true`) are skipped to protect review work.
 
 Importing before review enables **multi-user review**: once the data is in Supabase, any reviewer opens the Step 7 UI in a browser — no local files needed.
 
@@ -344,10 +367,13 @@ After enough problems are approved in Step 7, trigger a Next.js ISR revalidation
 [04] Segment into individual problems + sub-parts
          │
          ▼
-[05] Crop full problem regions → one PNG per problem number
+[05] Crop full problem regions → one PNG per problem number (feladatsor only)
          │
          ▼
-[06] Upload crop PNGs + upsert rows to Supabase (human_reviewed = false)
+[05b] Crop solution regions → one PNG per problem number (megoldások PDFs)
+         │
+         ▼
+[06] Upload all crop PNGs + upsert rows to Supabase (human_reviewed = false)
          │
          ▼
 [07] ★ REVIEW ★ — show crop image, assign tags, approve (10–20 s/problem)
@@ -400,13 +426,15 @@ Requires authentication. Stored in `user_progress` with `status = 'bookmarked'`.
 
 ---
 
-### F5 — Teacher: Hide / Show Solutions (Megoldás elrejtése)
+### FT — Teacher: Hide / Show Solutions (Megoldás elrejtése)
+
+> **Note:** This feature is intentionally not bound to a keyboard shortcut. F5 is reserved by browsers for page reload and must not be used.
 
 **User story:** As a teacher showing problems on a projector, I want to toggle solution visibility for the whole class session.
 
 **Complexity:** Low
 
-A global React context toggle collapses all `<SolutionPanel>` components. State is not persisted — it resets on page reload, which is correct for classroom use. No authentication required.
+A global React context toggle collapses all `<SolutionPanel>` components. Each `<SolutionPanel>` displays the `solution_image_url` as a full-width `<img>` tag — the pixel-perfect crop from the official megoldások PDF. If `solution_image_url` is NULL (solution PDF not yet processed), the panel shows a "Megoldás nem érhető el" placeholder instead. State is not persisted — it resets on page reload, which is correct for classroom use. No authentication required. The toggle is a prominent button in the page header, not a keyboard shortcut.
 
 ---
 

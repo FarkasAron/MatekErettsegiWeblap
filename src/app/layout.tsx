@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ThemeToggle from "@/components/ThemeToggle";
+import ScrollProgress from "@/components/ScrollProgress";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -22,6 +23,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         `}} />
       </head>
       <body className="min-h-screen bg-slate-50 dark:bg-[#060d1a] transition-colors duration-300">
+
+        <ScrollProgress />
 
         {/* Top accent bar */}
         <div className="h-1 w-full bg-gradient-to-r from-navy-600 via-crimson-600 to-navy-600" />
@@ -45,16 +48,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
 
             {/* Nav */}
-            <nav className="flex items-center gap-1">
+            <nav className="flex items-center gap-0.5 sm:gap-1">
               {[
-                { href: "/feladatok",      label: "Feladatok" },
-                { href: "/feladatsor",     label: "Feladatsorok" },
-                { href: "/temakoren-kint", label: "Témakörök" },
-                { href: "/statisztika",    label: "Statisztika" },
-              ].map(({ href, label }) => (
+                { href: "/feladatok",      label: "Feladatok",    mobileLabel: "Feladatok"  },
+                { href: "/feladatsor",     label: "Feladatsorok", mobileLabel: null          },
+                { href: "/temakoren-kint", label: "Témakörök",    mobileLabel: null          },
+                { href: "/statisztika",    label: "Statisztika",  mobileLabel: "Statisztika" },
+              ].map(({ href, label, mobileLabel }) => (
                 <Link key={href} href={href}
-                  className="nav-link px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300
-                             hover:text-navy-600 hover:bg-navy-50 dark:hover:bg-white/5 dark:hover:text-white">
+                  className={`nav-link px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm
+                              text-slate-600 dark:text-slate-300
+                              hover:text-navy-600 hover:bg-navy-50 dark:hover:bg-white/5 dark:hover:text-white
+                              ${mobileLabel === null ? "hidden sm:block" : ""}`}>
                   {label}
                 </Link>
               ))}

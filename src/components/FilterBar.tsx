@@ -9,14 +9,24 @@ interface ActiveFilters {
 
 const YEARS = Array.from({ length: 20 }, (_, i) => 2025 - i);
 
-const SELECT_CLS = `
-  border border-slate-200 dark:border-slate-700/60
-  rounded-xl px-3 py-2 text-sm font-medium
-  bg-white dark:bg-slate-800
-  text-slate-700 dark:text-slate-200
+const BASE_CLS = `
+  border rounded-xl px-3 py-2 text-sm font-medium
   focus:outline-none focus:ring-2 focus:ring-navy-400 dark:focus:ring-navy-500
+  transition-all cursor-pointer shadow-sm appearance-none
+`.replace(/\s+/g, " ").trim();
+
+const INACTIVE_CLS = `${BASE_CLS}
+  bg-white dark:bg-slate-800
+  border-slate-200 dark:border-slate-700/60
+  text-slate-700 dark:text-slate-200
   hover:border-navy-300 dark:hover:border-navy-600
-  transition-colors cursor-pointer shadow-sm
+`.replace(/\s+/g, " ").trim();
+
+const ACTIVE_CLS = `${BASE_CLS}
+  bg-navy-600 dark:bg-navy-600
+  border-navy-600 dark:border-navy-500
+  text-white dark:text-white
+  hover:bg-navy-700 dark:hover:bg-navy-700
 `.replace(/\s+/g, " ").trim();
 
 export default function FilterBar({ active }: { active: ActiveFilters }) {
@@ -35,46 +45,52 @@ export default function FilterBar({ active }: { active: ActiveFilters }) {
     router.push(`${pathname}?${params.toString()}`);
   }
 
+  const cls = (val: string | undefined) => val ? ACTIVE_CLS : INACTIVE_CLS;
   const hasFilters = [active.tema, active.szint, active.nehezseg, active.ev, active.tipus].some(Boolean);
+  const activeCount = [active.tema, active.szint, active.nehezseg, active.ev, active.tipus].filter(Boolean).length;
 
   return (
     <div className="flex flex-wrap gap-2 items-center">
-      <select value={active.szint ?? ""}    onChange={(e) => update("szint", e.target.value)}    className={SELECT_CLS}>
+      <select value={active.szint ?? ""}    onChange={(e) => update("szint", e.target.value)}    className={cls(active.szint)}>
         <option value="">Minden szint</option>
         <option value="kozep">Középszint</option>
         <option value="emelt">Emelt szint</option>
       </select>
 
-      <select value={active.tema ?? ""}     onChange={(e) => update("tema", e.target.value)}     className={SELECT_CLS}>
+      <select value={active.tema ?? ""}     onChange={(e) => update("tema", e.target.value)}     className={cls(active.tema)}>
         <option value="">Minden témakör</option>
         {Object.entries(TOPIC_LABELS).map(([slug, label]) => (
           <option key={slug} value={slug}>{label}</option>
         ))}
       </select>
 
-      <select value={active.nehezseg ?? ""} onChange={(e) => update("nehezseg", e.target.value)} className={SELECT_CLS}>
+      <select value={active.nehezseg ?? ""} onChange={(e) => update("nehezseg", e.target.value)} className={cls(active.nehezseg)}>
         <option value="">Minden nehézség</option>
         <option value="konnyu">Könnyű</option>
         <option value="kozepes">Közepes</option>
         <option value="nehez">Nehéz</option>
       </select>
 
-      <select value={active.ev ?? ""}       onChange={(e) => update("ev", e.target.value)}       className={SELECT_CLS}>
+      <select value={active.ev ?? ""}       onChange={(e) => update("ev", e.target.value)}       className={cls(active.ev)}>
         <option value="">Minden év</option>
         {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
       </select>
 
-      <select value={active.tipus ?? ""}     onChange={(e) => update("tipus", e.target.value)}     className={SELECT_CLS}>
+      <select value={active.tipus ?? ""}    onChange={(e) => update("tipus", e.target.value)}    className={cls(active.tipus)}>
         <option value="">Minden típus</option>
-        <option value="rovid">Rövid feladatok (1–4)</option>
-        <option value="hosszu">Hosszú feladatok (5+)</option>
+        <option value="rovid">Rövid (1–4)</option>
+        <option value="hosszu">Hosszú (5+)</option>
       </select>
 
       {hasFilters && (
         <a href="/feladatok"
-          className="px-3 py-2 rounded-xl text-sm font-semibold text-crimson-600 dark:text-crimson-400
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold
+                     text-crimson-600 dark:text-crimson-400 border border-crimson-200 dark:border-crimson-800
                      hover:bg-crimson-50 dark:hover:bg-crimson-900/20 transition-colors">
-          Törlés ✕
+          <span className="w-4 h-4 rounded-full bg-crimson-500 text-white text-[10px] flex items-center justify-center font-bold shrink-0">
+            {activeCount}
+          </span>
+          Törlés
         </a>
       )}
     </div>

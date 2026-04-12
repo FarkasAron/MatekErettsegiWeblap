@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import ScrollReveal from "@/components/ScrollReveal";
 
 export const revalidate = 300;
 
@@ -64,7 +65,6 @@ async function getExamGroups(): Promise<ExamGroup[]> {
 export default async function FeladatsorPage() {
   const groups = await getExamGroups();
 
-  // Group by year for display
   const byYear = new Map<number, ExamGroup[]>();
   for (const g of groups) {
     if (!byYear.has(g.year)) byYear.set(g.year, []);
@@ -72,52 +72,68 @@ export default async function FeladatsorPage() {
   }
 
   return (
-    <div className="space-y-10 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Feladatsorok</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-2">
-          Teljes érettségi feladatsorok — az eredeti vizsgalap sorrendjében.
-        </p>
-      </div>
+    <div className="space-y-10">
 
-      {Array.from(byYear.entries()).map(([year, yearGroups]) => (
-        <section key={year}>
-          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-3">{year}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {yearGroups.map((g) => {
-              const sessionLabel = SESSION_LABELS[g.exam_session] ?? g.exam_session;
-              const typeLabel = g.exam_type === "kozep" ? "Középszint" : "Emelt szint";
-              const partLabel = g.exam_part ? ` · ${g.exam_part}. rész` : "";
-              const slug = toSlug(g);
+      {/* Header */}
+      <ScrollReveal>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Feladatsorok</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-2">
+            Teljes érettségi feladatsorok — az eredeti vizsgalap sorrendjében.
+          </p>
+        </div>
+      </ScrollReveal>
 
-              return (
-                <Link
-                  key={slug}
-                  href={`/feladatsor/${slug}`}
-                  className="card p-5 flex items-center justify-between gap-3 group overflow-hidden relative"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-navy-50 to-transparent dark:from-navy-900/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+      {Array.from(byYear.entries()).map(([year, yearGroups], yearIndex) => (
+        <ScrollReveal key={year} delay={Math.min(yearIndex * 40, 200)}>
+          <section>
+            {/* Year heading with accent */}
+            <div className="flex items-center gap-3 mb-4">
+              <span className="w-[3px] h-6 bg-crimson-500 rounded-full shrink-0" />
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">{year}</h2>
+              <span className="text-xs text-slate-400 dark:text-slate-600 font-medium">
+                {yearGroups.length} feladatsor
+              </span>
+            </div>
 
-                  <div className="relative flex-1 min-w-0">
-                    <div className="font-semibold text-slate-800 dark:text-slate-100 leading-snug">
-                      {sessionLabel}{partLabel}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {yearGroups.map((g) => {
+                const sessionLabel = SESSION_LABELS[g.exam_session] ?? g.exam_session;
+                const typeLabel    = g.exam_type === "kozep" ? "Középszint" : "Emelt szint";
+                const partLabel    = g.exam_part ? ` · ${g.exam_part}. rész` : "";
+                const slug         = toSlug(g);
+                const isEmelt      = g.exam_type === "emelt";
+
+                return (
+                  <Link
+                    key={slug}
+                    href={`/feladatsor/${slug}`}
+                    className="card p-5 flex items-center justify-between gap-3 group overflow-hidden relative"
+                  >
+                    {/* Left accent */}
+                    <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${isEmelt ? "bg-crimson-500" : "bg-navy-500"}`} />
+
+                    <div className="absolute inset-0 bg-gradient-to-r from-navy-50 to-transparent dark:from-navy-900/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                    <div className="relative flex-1 min-w-0">
+                      <div className="font-semibold text-slate-800 dark:text-slate-100 leading-snug">
+                        {sessionLabel}{partLabel}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className={`badge text-white text-[10px] ${isEmelt ? "bg-crimson-600" : "bg-navy-600"}`}>
+                          {typeLabel}
+                        </span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500">{g.count} feladat</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className={`badge text-white text-[10px] ${
-                        g.exam_type === "emelt" ? "bg-crimson-600" : "bg-navy-600"
-                      }`}>
-                        {typeLabel}
-                      </span>
-                      <span className="text-xs text-slate-400 dark:text-slate-500">{g.count} feladat</span>
-                    </div>
-                  </div>
 
-                  <span className="relative text-xl text-slate-200 dark:text-slate-700 group-hover:text-navy-500 dark:group-hover:text-navy-400 group-hover:translate-x-1 transition-all shrink-0">→</span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
+                    <span className="relative text-xl text-slate-200 dark:text-slate-700 group-hover:text-navy-500 dark:group-hover:text-navy-400 group-hover:translate-x-1 transition-all shrink-0">→</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        </ScrollReveal>
       ))}
     </div>
   );
