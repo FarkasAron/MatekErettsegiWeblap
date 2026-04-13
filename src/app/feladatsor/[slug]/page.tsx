@@ -26,7 +26,7 @@ async function getProblems(slug: string): Promise<Problem[]> {
 
   let query = supabase
     .from("problems")
-    .select("id,year,exam_type,exam_session,exam_part,problem_number,sub_part,problem_image_url,max_points,difficulty_level,topic_tags,ocr_used")
+    .select("id,year,exam_type,exam_session,exam_part,problem_number,sub_part,problem_image_url,max_points,topic_tags,ocr_used")
     .eq("human_reviewed", true)
     .eq("year", year)
     .eq("exam_type", exam_type)

@@ -4,7 +4,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { TOPIC_LABELS } from "@/lib/supabase";
 
 interface ActiveFilters {
-  tema?: string; szint?: string; nehezseg?: string; ev?: string; nezet?: string; tipus?: string;
+  tema?: string; szint?: string; ev?: string; nezet?: string; tipus?: string;
 }
 
 const YEARS = Array.from({ length: 20 }, (_, i) => 2025 - i);
@@ -35,19 +35,18 @@ export default function FilterBar({ active }: { active: ActiveFilters }) {
 
   function update(key: string, value: string) {
     const params = new URLSearchParams();
-    if (active.tema)     params.set("tema",     active.tema);
-    if (active.szint)    params.set("szint",    active.szint);
-    if (active.nehezseg) params.set("nehezseg", active.nehezseg);
-    if (active.ev)       params.set("ev",       active.ev);
-    if (active.nezet)    params.set("nezet",    active.nezet);
-    if (active.tipus)    params.set("tipus",    active.tipus);
+    if (active.tema)  params.set("tema",  active.tema);
+    if (active.szint) params.set("szint", active.szint);
+    if (active.ev)    params.set("ev",    active.ev);
+    if (active.nezet) params.set("nezet", active.nezet);
+    if (active.tipus) params.set("tipus", active.tipus);
     if (value) params.set(key, value); else params.delete(key);
     router.push(`${pathname}?${params.toString()}`);
   }
 
   const cls = (val: string | undefined) => val ? ACTIVE_CLS : INACTIVE_CLS;
-  const hasFilters = [active.tema, active.szint, active.nehezseg, active.ev, active.tipus].some(Boolean);
-  const activeCount = [active.tema, active.szint, active.nehezseg, active.ev, active.tipus].filter(Boolean).length;
+  const hasFilters  = [active.tema, active.szint, active.ev, active.tipus].some(Boolean);
+  const activeCount = [active.tema, active.szint, active.ev, active.tipus].filter(Boolean).length;
 
   return (
     <div className="flex flex-wrap gap-2 items-center">
@@ -62,13 +61,6 @@ export default function FilterBar({ active }: { active: ActiveFilters }) {
         {Object.entries(TOPIC_LABELS).map(([slug, label]) => (
           <option key={slug} value={slug}>{label}</option>
         ))}
-      </select>
-
-      <select value={active.nehezseg ?? ""} onChange={(e) => update("nehezseg", e.target.value)} className={cls(active.nehezseg)}>
-        <option value="">Minden nehézség</option>
-        <option value="konnyu">Könnyű</option>
-        <option value="kozepes">Közepes</option>
-        <option value="nehez">Nehéz</option>
       </select>
 
       <select value={active.ev ?? ""}       onChange={(e) => update("ev", e.target.value)}       className={cls(active.ev)}>

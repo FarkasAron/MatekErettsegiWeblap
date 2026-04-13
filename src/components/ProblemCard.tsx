@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { type Problem, TOPIC_LABELS, DIFFICULTY_LABELS } from "@/lib/supabase";
+import { type Problem, TOPIC_LABELS } from "@/lib/supabase";
 
 const SESSION_LABELS: Record<string, string> = {
   majus:   "május",
@@ -10,17 +10,6 @@ const SESSION_LABELS: Record<string, string> = {
   februar: "február",
 };
 
-const DIFFICULTY_STYLES: Record<string, string> = {
-  konnyu:  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
-  kozepes: "bg-amber-100  text-amber-700   dark:bg-amber-900/40   dark:text-amber-400",
-  nehez:   "bg-crimson-100 text-crimson-700 dark:bg-crimson-900/40 dark:text-crimson-400",
-};
-
-const DIFFICULTY_DOT: Record<string, string> = {
-  konnyu:  "bg-emerald-400",
-  kozepes: "bg-amber-400",
-  nehez:   "bg-crimson-500",
-};
 
 export default function ProblemCard({ problem }: { problem: Problem }) {
   const [open, setOpen] = useState(false);
@@ -107,15 +96,6 @@ export default function ProblemCard({ problem }: { problem: Problem }) {
             )}
           </div>
 
-          {problem.difficulty_level && (
-            <div className="flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full ${DIFFICULTY_DOT[problem.difficulty_level]}`} />
-              <span className={`badge ${DIFFICULTY_STYLES[problem.difficulty_level]}`}>
-                {DIFFICULTY_LABELS[problem.difficulty_level]}
-              </span>
-            </div>
-          )}
-
           {problem.topic_tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-auto pt-1">
               {problem.topic_tags.map((tag) => (
@@ -158,7 +138,7 @@ export default function ProblemCard({ problem }: { problem: Problem }) {
             <img
               src={problem.problem_image_url!}
               alt={`${problem.year} ${session} ${fullType} ${problem.problem_number}. feladat${subLabel}`}
-              className="w-full h-auto rounded-2xl shadow-2xl bg-white"
+              className="block mx-auto w-auto max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl bg-white"
             />
 
             {/* Caption */}
@@ -178,12 +158,6 @@ export default function ProblemCard({ problem }: { problem: Problem }) {
                 <>
                   <span className="text-white/30">·</span>
                   <span className="text-white/60">{problem.max_points} pont</span>
-                </>
-              )}
-              {problem.difficulty_level && (
-                <>
-                  <span className="text-white/30">·</span>
-                  <span className="text-white/60">{DIFFICULTY_LABELS[problem.difficulty_level]}</span>
                 </>
               )}
             </div>

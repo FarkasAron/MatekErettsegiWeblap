@@ -15,7 +15,6 @@ export type Problem = {
   sub_part: string | null;
   problem_image_url: string | null;
   max_points: number | null;
-  difficulty_level: "konnyu" | "kozepes" | "nehez" | null;
   topic_tags: string[];
   ocr_used: boolean;
 };
@@ -49,8 +48,3 @@ export const TOPIC_LABELS: Record<string, string> = {
   szovegfeladas:          "Szöveges feladat",
 };
 
-export const DIFFICULTY_LABELS: Record<string, string> = {
-  konnyu:  "Könnyű",
-  kozepes: "Közepes",
-  nehez:   "Nehéz",
-};

@@ -9,9 +9,9 @@ export const revalidate = 300;
 async function getTopicCounts(): Promise<{ slug: string; label: string; count: number }[]> {
   const { data, error } = await supabase
     .from("problems")
-    .select("topic_tags, exam_type, difficulty_level")
+    .select("topic_tags")
     .eq("human_reviewed", true)
-    .limit(2000);
+    .limit(5000);
   if (error) throw error;
 
   const counts: Record<string, number> = {};
@@ -29,19 +29,16 @@ async function getTopicCounts(): Promise<{ slug: string; label: string; count: n
 async function getSummary() {
   const { data } = await supabase
     .from("problems")
-    .select("exam_type, difficulty_level")
+    .select("exam_type")
     .eq("human_reviewed", true)
-    .limit(2000);
+    .limit(5000);
 
-  const rows = data ?? [];
-  const total   = rows.length;
-  const kozep   = rows.filter((r) => r.exam_type === "kozep").length;
-  const emelt   = rows.filter((r) => r.exam_type === "emelt").length;
-  const konnyu  = rows.filter((r) => r.difficulty_level === "konnyu").length;
-  const kozepes = rows.filter((r) => r.difficulty_level === "kozepes").length;
-  const nehez   = rows.filter((r) => r.difficulty_level === "nehez").length;
+  const rows  = data ?? [];
+  const total = rows.length;
+  const kozep = rows.filter((r) => r.exam_type === "kozep").length;
+  const emelt = rows.filter((r) => r.exam_type === "emelt").length;
 
-  return { total, kozep, emelt, konnyu, kozepes, nehez };
+  return { total, kozep, emelt };
 }
 
 export default async function StatisztikaPage() {
@@ -49,12 +46,9 @@ export default async function StatisztikaPage() {
   const maxCount = topics[0]?.count ?? 1;
 
   const summaryItems = [
-    { label: "Összes feladat", value: summary.total,   color: "text-navy-600 dark:text-navy-200" },
-    { label: "Középszint",     value: summary.kozep,   color: "text-blue-600 dark:text-blue-300" },
-    { label: "Emelt szint",    value: summary.emelt,   color: "text-crimson-600 dark:text-crimson-300" },
-    { label: "Könnyű",         value: summary.konnyu,  color: "text-emerald-600 dark:text-emerald-300" },
-    { label: "Közepes",        value: summary.kozepes, color: "text-amber-600 dark:text-amber-300" },
-    { label: "Nehéz",          value: summary.nehez,   color: "text-rose-600 dark:text-rose-300" },
+    { label: "Összes feladat", value: summary.total, color: "text-navy-600 dark:text-navy-200" },
+    { label: "Középszint",     value: summary.kozep, color: "text-blue-600 dark:text-blue-300" },
+    { label: "Emelt szint",    value: summary.emelt, color: "text-crimson-600 dark:text-crimson-300" },
   ];
 
   return (

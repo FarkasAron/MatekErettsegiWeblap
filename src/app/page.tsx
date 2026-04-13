@@ -1,8 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { TOPIC_LABELS } from "@/lib/supabase";
+import { supabase, TOPIC_LABELS } from "@/lib/supabase";
 import ScrollReveal from "@/components/ScrollReveal";
 import StatCounter from "@/components/StatCounter";
+
+export const revalidate = 300;
 
 // Fixed positions — no Math.random() to avoid hydration mismatch
 const MATH_SYMBOLS = [
@@ -31,14 +33,26 @@ const FEATURED_TOPICS = [
   { slug: "szovegfeladas",        icon: "✎",    wide: false },
 ];
 
-const STATS = [
-  { value: "2 500+", label: "Feladat" },
-  { value: "26",     label: "Témakör" },
-  { value: "20+",    label: "Évjárat" },
-  { value: "100+",   label: "Feladatsor" },
-];
+export default async function HomePage() {
+  const [{ count: problemCount }, { data: yearData }, { data: sessionData }] = await Promise.all([
+    supabase.from("problems").select("*", { count: "exact", head: true }).eq("human_reviewed", true),
+    supabase.from("problems").select("year").eq("human_reviewed", true),
+    supabase.from("problems").select("exam_session, year, exam_type").eq("human_reviewed", true),
+  ]);
 
-export default function HomePage() {
+  const yearCount    = new Set(yearData?.map((r) => r.year)).size;
+  const sessionCount = new Set(sessionData?.map((r) => `${r.year}-${r.exam_type}-${r.exam_session}`)).size;
+  const total        = problemCount ?? 0;
+  const totalStr     = total >= 1000
+    ? `${Math.floor(total / 1000)} ${String(total % 1000).padStart(3, "0")}`
+    : String(total);
+
+  const STATS = [
+    { value: totalStr,          label: "Feladat" },
+    { value: "26",              label: "Témakör" },
+    { value: String(yearCount), label: "Évjárat" },
+    { value: String(sessionCount), label: "Feladatsor" },
+  ];
   return (
     <div className="space-y-20">
 
