@@ -9,6 +9,100 @@ the real domain or IP address of the school server.
 
 ---
 
+## Tech stack summary
+
+This document is intended to be shared with the school's IT administrator.
+The section below describes the full technology stack of the application and
+exactly what software needs to be installed and where.
+
+### What the application is
+
+**Matematika Feladatbank** is a web application for Boronkay György Technikum.
+It serves a searchable, filterable database of 2 500+ Hungarian high school
+mathematics exam problems (érettségi feladatok) with images, organized by topic.
+It is a read-only public website — no student accounts, no logins, no user data
+is collected or stored.
+
+### Technology stack
+
+| Layer | Technology | Version | Purpose |
+|---|---|---|---|
+| Web framework | Next.js | 14 (LTS) | Renders the website (server-side) |
+| Language | Node.js | 20 LTS | Runs the Next.js server |
+| Database | PostgreSQL | 16 | Stores ~2 500 exam problems |
+| Web server | nginx | latest stable | Reverse proxy + serves static images |
+| Process manager | PM2 | latest stable | Keeps Node.js alive, auto-restarts on crash/reboot |
+| SSL certificates | Let's Encrypt (Certbot) | latest stable | Free HTTPS certificates, auto-renewing |
+
+### What needs to be installed — school server
+
+Everything below must be installed on the school's Linux server by the IT
+administrator. No proprietary or paid software is required — all tools are
+free and open source.
+
+| Software | How to install | Why it is needed |
+|---|---|---|
+| **Ubuntu 22.04 LTS** | Pre-installed OS | Recommended base system |
+| **Node.js 20 LTS** | Via NodeSource apt repo | Runs the web application |
+| **npm** | Comes with Node.js | Installs JavaScript dependencies |
+| **PM2** | `npm install -g pm2` | Keeps the app running 24/7, starts on boot |
+| **PostgreSQL 16** | Via apt | Database server |
+| **nginx** | Via apt | Handles incoming web traffic, serves images |
+| **Certbot** | Via apt | Manages free HTTPS certificates from Let's Encrypt |
+| **ufw** | Via apt (usually pre-installed) | Firewall — blocks all ports except 22, 80, 443 |
+| **git** | Via apt (usually pre-installed) | Downloads the application code |
+
+### What needs to be installed — developer machine (not the server)
+
+These tools are only needed on the developer's own computer to perform the
+one-time data migration. They do not go on the school server.
+
+| Software | Why it is needed |
+|---|---|
+| **Python 3.10+** | Runs the image download migration script |
+| **psycopg2-binary** (Python package) | Connects Python scripts to PostgreSQL |
+| **pg_dump** (PostgreSQL client tools) | Exports the database from Supabase |
+| **scp / ssh** | Transfers files to the school server |
+
+### Server requirements
+
+| Resource | Minimum | Recommended |
+|---|---|---|
+| CPU | 1 core | 2 cores |
+| RAM | 1 GB | 2 GB |
+| Disk space | 5 GB | 10 GB |
+| OS | Ubuntu 22.04 LTS | Ubuntu 22.04 LTS |
+| Network | Public IP + domain name | Public IP + domain name |
+
+> Disk breakdown: ~2 GB for problem images, ~100 MB for the database,
+> ~500 MB for Node.js and the application, rest for OS and logs.
+
+### Network requirements
+
+The school server must be reachable from the public internet on:
+- **Port 80** (HTTP — redirects to HTTPS)
+- **Port 443** (HTTPS — the actual website)
+- **Port 22** (SSH — for administration; can be restricted to specific IPs)
+
+The following ports must **not** be publicly accessible (firewall blocks them):
+- Port 3000 (Next.js internal port)
+- Port 5432 (PostgreSQL internal port)
+
+A domain name (e.g. `feladatbank.boronkay.hu`) must be configured with a DNS
+A record pointing to the server's public IP address before HTTPS can be set up.
+
+### Security notes for the IT administrator
+
+- The application is entirely read-only from the public internet. No form
+  submissions, no file uploads, no user accounts.
+- PostgreSQL is not exposed to the internet — it only accepts local connections.
+- HTTPS is enforced via Let's Encrypt with automatic certificate renewal.
+- The firewall (ufw) blocks all ports except SSH, HTTP, and HTTPS.
+- No sensitive credentials are stored in the application code repository.
+- The database contains only public exam problems — no personal data.
+
+---
+
 ## What lives where after migration
 
 | Component | Currently | After migration |
