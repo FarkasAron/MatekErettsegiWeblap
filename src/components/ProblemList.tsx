@@ -2,13 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { type Problem, TOPIC_LABELS } from "@/lib/supabase";
-
-const SESSION_LABELS: Record<string, string> = {
-  majus:   "május",
-  oktober: "október",
-  februar: "február",
-};
+import { type Problem, TOPIC_LABELS, SESSION_LABELS } from "@/lib/supabase";
 
 function ProblemRow({ problem }: { problem: Problem }) {
   const [open,        setOpen]        = useState(false);

@@ -8,11 +8,7 @@ saját szerverén fusson.
 
 ## Mi ez az alkalmazás?
 
-A Matematika Feladatbank egy webalkalmazás, amelyen a Boronkay György Technikum
-diákjai érettségi matematika feladatokat böngészhetnek. Az adatbázis közel
-2 500 feladatot tartalmaz az elmúlt 20+ év középszintű és emelt szintű érettségi
-vizsgáiból. A feladatok témakör és évjárat szerint szűrhetők, és minden feladathoz
-megjelenik az eredeti vizsgalapon szereplő kép.
+A Feladatbank egy webalkalmazás, amelyen a Boronkay György Műszaki Technikum és Gimnázium diákjai érettségi matematika feladatokat böngészhetnek. Az adatbázis közel 2 500 feladatot tartalmaz az elmúlt 20+ év középszintű és emelt szintű érettségi vizsgáiból. A feladatok témakör és évjárat szerint szűrhetők, és minden feladathoz megjelenik az eredeti vizsgalapon szereplő kép.
 
 Az oldal nyilvános és csak olvasható – nincs bejelentkezés, nincs felhasználói
 fiók, személyes adat nem kerül gyűjtésre vagy tárolásra.
@@ -26,8 +22,7 @@ fejlesztő saját fiókján keresztül ér el. Ez ingyenes, de korlátozott: ha 
 oldalt 7 napig senki nem látogatja meg, a szolgáltatás automatikusan „szünetelteti"
 az adatbázist, és az oldal elérhetetlenné válik, amíg kézzel újra nem indítják.
 
-Ez iskolai használatra nem megfelelő, ezért az a cél, hogy az alkalmazás az
-iskola saját szerverén fusson, ahol nincs ilyen korlát.
+Ez iskolai és hétköznapi használatra nem megfelelő, ezért az a cél, hogy az alkalmazás az iskola saját szerverén fusson, ahol nincs ilyen korlát.
 
 ---
 
@@ -60,7 +55,7 @@ Certbot), amely ingyenes SSL tanúsítványt biztosít, hogy az oldal biztonság
 
 ## Milyen szerverre van szükség?
 
-Az alkalmazás nem igényel teljesítményes hardvert. Egy átlagos iskolai szerver
+Az alkalmazás nem igényel erős hardvert. Egy átlagos iskolai szerver
 bőven elegendő, ha teljesíti az alábbiakat:
 
 - Operációs rendszer: Ubuntu Linux 22.04 LTS (ajánlott) vagy más modern Linux

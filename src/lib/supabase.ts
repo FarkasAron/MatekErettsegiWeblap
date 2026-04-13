@@ -19,6 +19,12 @@ export type Problem = {
   ocr_used: boolean;
 };
 
+export const SESSION_LABELS: Record<string, string> = {
+  majus:   "május",
+  oktober: "október",
+  februar: "február",
+};
+
 export const TOPIC_LABELS: Record<string, string> = {
   halmazok:               "Halmazok",
   logika:                 "Matematikai logika",

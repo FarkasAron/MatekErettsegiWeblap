@@ -7,9 +7,33 @@ import PrintButton from "@/components/PrintButton";
 import { Suspense } from "react";
 
 const PAGE_SIZE = 50;
+const MIN_YEAR  = 2000;
+const MAX_YEAR  = 2035;
+
+const VALID_SZINT = new Set(["kozep", "emelt"]);
+const VALID_TIPUS = new Set(["rovid", "hosszu"]);
 
 interface Props {
   searchParams: { tema?: string; szint?: string; ev?: string; nezet?: string; tipus?: string; oldal?: string };
+}
+
+function sanitizeFilters(raw: Props["searchParams"]): Props["searchParams"] {
+  const rawOldal = parseInt(raw.oldal ?? "1");
+  const oldal    = Number.isFinite(rawOldal) && rawOldal > 0 ? rawOldal : 1;
+
+  const rawEv = raw.ev ? parseInt(raw.ev) : NaN;
+  const ev    = Number.isFinite(rawEv) && rawEv >= MIN_YEAR && rawEv <= MAX_YEAR
+    ? String(rawEv)
+    : undefined;
+
+  return {
+    oldal: String(oldal),
+    szint: raw.szint && VALID_SZINT.has(raw.szint) ? raw.szint : undefined,
+    tema:  raw.tema  && (raw.tema in TOPIC_LABELS)  ? raw.tema  : undefined,
+    tipus: raw.tipus && VALID_TIPUS.has(raw.tipus)  ? raw.tipus : undefined,
+    nezet: raw.nezet === "list" ? "list" : undefined,
+    ev,
+  };
 }
 
 export const revalidate = 300;
@@ -26,7 +50,7 @@ function buildPageUrl(filters: Props["searchParams"], page: number): string {
   return `/feladatok${q ? `?${q}` : ""}`;
 }
 
-async function getProblems(filters: Props["searchParams"]): Promise<{ problems: Problem[]; total: number }> {
+async function getProblems(filters: Props["searchParams"]): Promise<{ problems: Problem[]; total: number; dbError?: boolean }> {
   const page   = Math.max(1, parseInt(filters.oldal ?? "1"));
   const offset = (page - 1) * PAGE_SIZE;
 
@@ -66,34 +90,40 @@ async function getProblems(filters: Props["searchParams"]): Promise<{ problems: 
     countQuery = countQuery.gte("problem_number", 5);
   }
 
-  const [{ data, error }, { count }] = await Promise.all([dataQuery, countQuery]);
-  if (error) throw error;
-  return { problems: (data as Problem[]) ?? [], total: count ?? 0 };
+  try {
+    const [{ data, error }, { count }] = await Promise.all([dataQuery, countQuery]);
+    if (error) throw error;
+    return { problems: (data as Problem[]) ?? [], total: count ?? 0 };
+  } catch (err) {
+    console.error("[feladatok] Failed to fetch problems:", err);
+    return { problems: [], total: 0, dbError: true };
+  }
 }
 
 export default async function FeladatokPage({ searchParams }: Props) {
-  const { problems, total } = await getProblems(searchParams);
-  const page       = Math.max(1, parseInt(searchParams.oldal ?? "1"));
-  const view       = searchParams.nezet === "list" ? "list" : "grid";
+  const filters    = sanitizeFilters(searchParams);
+  const { problems, total, dbError } = await getProblems(filters);
+  const page       = Math.max(1, parseInt(filters.oldal ?? "1"));
+  const view       = filters.nezet === "list" ? "list" : "grid";
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const fromItem   = (page - 1) * PAGE_SIZE + 1;
   const toItem     = Math.min(page * PAGE_SIZE, total);
 
   const activeFilters = {
-    tema:  searchParams.tema,
-    szint: searchParams.szint,
-    ev:    searchParams.ev,
-    nezet: searchParams.nezet,
-    tipus: searchParams.tipus,
+    tema:  filters.tema,
+    szint: filters.szint,
+    ev:    filters.ev,
+    nezet: filters.nezet,
+    tipus: filters.tipus,
   };
 
-  const topicLabel = searchParams.tema  ? TOPIC_LABELS[searchParams.tema] : null;
-  const examLabel  = searchParams.szint === "kozep" ? "Középszint"
-                   : searchParams.szint === "emelt" ? "Emelt szint" : null;
-  const tipusLabel = searchParams.tipus === "rovid"  ? "Rövid (1–4)"
-                   : searchParams.tipus === "hosszu" ? "Hosszú (5+)" : null;
+  const topicLabel = filters.tema  ? TOPIC_LABELS[filters.tema] : null;
+  const examLabel  = filters.szint === "kozep" ? "Középszint"
+                   : filters.szint === "emelt" ? "Emelt szint" : null;
+  const tipusLabel = filters.tipus === "rovid"  ? "Rövid (1–4)"
+                   : filters.tipus === "hosszu" ? "Hosszú (5+)" : null;
 
-  const titleParts = [topicLabel, examLabel, tipusLabel, searchParams.ev].filter(Boolean);
+  const titleParts = [topicLabel, examLabel, tipusLabel, filters.ev].filter(Boolean);
   const pageTitle  = titleParts.length > 0 ? titleParts.join(" · ") : "Összes feladat";
 
   return (
@@ -116,7 +146,12 @@ export default async function FeladatokPage({ searchParams }: Props) {
 
       <FilterBar active={activeFilters} />
 
-      {problems.length === 0 ? (
+      {dbError ? (
+        <div className="text-center py-16 text-slate-500 dark:text-slate-400">
+          <p className="text-lg font-medium text-red-600 dark:text-red-400">Hiba történt az adatok betöltésekor.</p>
+          <p className="text-sm mt-2">Kérjük, töltsd újra az oldalt, vagy próbáld meg később.</p>
+        </div>
+      ) : problems.length === 0 ? (
         <div className="text-center py-16 text-slate-500 dark:text-slate-400">
           <p className="text-lg">Nincs találat ezekkel a szűrőkkel.</p>
           <p className="text-sm mt-2">Próbálj kevesebb szűrőt alkalmazni.</p>
@@ -139,7 +174,7 @@ export default async function FeladatokPage({ searchParams }: Props) {
           <div className="flex gap-2">
             {page > 1 && (
               <a
-                href={buildPageUrl(searchParams, page - 1)}
+                href={buildPageUrl(filters, page - 1)}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium
                            bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700
                            text-slate-700 dark:text-slate-200 hover:border-navy-400 transition-colors"
@@ -149,7 +184,7 @@ export default async function FeladatokPage({ searchParams }: Props) {
             )}
             {page < totalPages && (
               <a
-                href={buildPageUrl(searchParams, page + 1)}
+                href={buildPageUrl(filters, page + 1)}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium
                            bg-navy-600 border border-navy-600 text-white hover:bg-navy-700 transition-colors"
               >

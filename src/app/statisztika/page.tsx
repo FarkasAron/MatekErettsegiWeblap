@@ -6,43 +6,57 @@ import StatCounter from "@/components/StatCounter";
 
 export const revalidate = 300;
 
-async function getTopicCounts(): Promise<{ slug: string; label: string; count: number }[]> {
-  const { data, error } = await supabase
-    .from("problems")
-    .select("topic_tags")
-    .eq("human_reviewed", true)
-    .limit(5000);
-  if (error) throw error;
+async function getTopicCounts(): Promise<{ topics: { slug: string; label: string; count: number }[]; dbError?: boolean }> {
+  try {
+    const { data, error } = await supabase
+      .from("problems")
+      .select("topic_tags")
+      .eq("human_reviewed", true)
+      .limit(5000);
+    if (error) throw error;
 
-  const counts: Record<string, number> = {};
-  for (const row of data ?? []) {
-    for (const tag of row.topic_tags ?? []) {
-      counts[tag] = (counts[tag] || 0) + 1;
+    const counts: Record<string, number> = {};
+    for (const row of data ?? []) {
+      for (const tag of row.topic_tags ?? []) {
+        counts[tag] = (counts[tag] || 0) + 1;
+      }
     }
-  }
 
-  return Object.entries(TOPIC_LABELS)
-    .map(([slug, label]) => ({ slug, label, count: counts[slug] ?? 0 }))
-    .sort((a, b) => b.count - a.count);
+    const topics = Object.entries(TOPIC_LABELS)
+      .map(([slug, label]) => ({ slug, label, count: counts[slug] ?? 0 }))
+      .sort((a, b) => b.count - a.count);
+
+    return { topics };
+  } catch (err) {
+    console.error("[statisztika] Failed to fetch topic counts:", err);
+    return { topics: [], dbError: true };
+  }
 }
 
-async function getSummary() {
-  const { data } = await supabase
-    .from("problems")
-    .select("exam_type")
-    .eq("human_reviewed", true)
-    .limit(5000);
+async function getSummary(): Promise<{ total: number; kozep: number; emelt: number; dbError?: boolean }> {
+  try {
+    const { data, error } = await supabase
+      .from("problems")
+      .select("exam_type")
+      .eq("human_reviewed", true)
+      .limit(5000);
+    if (error) throw error;
 
-  const rows  = data ?? [];
-  const total = rows.length;
-  const kozep = rows.filter((r) => r.exam_type === "kozep").length;
-  const emelt = rows.filter((r) => r.exam_type === "emelt").length;
+    const rows  = data ?? [];
+    const total = rows.length;
+    const kozep = rows.filter((r) => r.exam_type === "kozep").length;
+    const emelt = rows.filter((r) => r.exam_type === "emelt").length;
 
-  return { total, kozep, emelt };
+    return { total, kozep, emelt };
+  } catch (err) {
+    console.error("[statisztika] Failed to fetch summary:", err);
+    return { total: 0, kozep: 0, emelt: 0, dbError: true };
+  }
 }
 
 export default async function StatisztikaPage() {
-  const [topics, summary] = await Promise.all([getTopicCounts(), getSummary()]);
+  const [{ topics, dbError: topicsError }, summary] = await Promise.all([getTopicCounts(), getSummary()]);
+  const dbError  = topicsError || summary.dbError;
   const maxCount = topics[0]?.count ?? 1;
 
   const summaryItems = [
@@ -63,6 +77,13 @@ export default async function StatisztikaPage() {
           </p>
         </div>
       </ScrollReveal>
+
+      {dbError && (
+        <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+          <p className="text-lg font-medium text-red-600 dark:text-red-400">Hiba történt az adatok betöltésekor.</p>
+          <p className="text-sm mt-2">Kérjük, töltsd újra az oldalt, vagy próbáld meg később.</p>
+        </div>
+      )}
 
       {/* Summary cards — numbers count up on scroll */}
       <ScrollReveal delay={60}>

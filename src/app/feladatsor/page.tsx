@@ -1,14 +1,8 @@
-import { supabase } from "@/lib/supabase";
+import { supabase, SESSION_LABELS } from "@/lib/supabase";
 import Link from "next/link";
 import ScrollReveal from "@/components/ScrollReveal";
 
 export const revalidate = 300;
-
-const SESSION_LABELS: Record<string, string> = {
-  majus:   "május",
-  oktober: "október",
-  februar: "február",
-};
 
 interface ExamGroup {
   year: number;
@@ -23,47 +17,54 @@ function toSlug(g: ExamGroup): string {
   return g.exam_part ? `${base}-${g.exam_part.toLowerCase()}` : base;
 }
 
-async function getExamGroups(): Promise<ExamGroup[]> {
-  const { data, error } = await supabase
-    .from("problems")
-    .select("year,exam_type,exam_session,exam_part")
-    .eq("human_reviewed", true)
-    .order("year", { ascending: false })
-    .order("exam_session")
-    .order("exam_type")
-    .limit(2000);
+async function getExamGroups(): Promise<{ groups: ExamGroup[]; dbError?: boolean }> {
+  try {
+    const { data, error } = await supabase
+      .from("problems")
+      .select("year,exam_type,exam_session,exam_part")
+      .eq("human_reviewed", true)
+      .order("year", { ascending: false })
+      .order("exam_session")
+      .order("exam_type")
+      .limit(2000);
 
-  if (error) throw error;
+    if (error) throw error;
 
-  const map = new Map<string, ExamGroup>();
-  for (const row of data ?? []) {
-    const key = `${row.year}-${row.exam_type}-${row.exam_session}-${row.exam_part ?? ""}`;
-    if (map.has(key)) {
-      map.get(key)!.count++;
-    } else {
-      map.set(key, {
-        year: row.year,
-        exam_type: row.exam_type,
-        exam_session: row.exam_session,
-        exam_part: row.exam_part,
-        count: 1,
-      });
+    const map = new Map<string, ExamGroup>();
+    for (const row of data ?? []) {
+      const key = `${row.year}-${row.exam_type}-${row.exam_session}-${row.exam_part ?? ""}`;
+      if (map.has(key)) {
+        map.get(key)!.count++;
+      } else {
+        map.set(key, {
+          year: row.year,
+          exam_type: row.exam_type,
+          exam_session: row.exam_session,
+          exam_part: row.exam_part,
+          count: 1,
+        });
+      }
     }
-  }
 
-  return Array.from(map.values()).sort((a, b) => {
-    if (b.year !== a.year) return b.year - a.year;
-    const sessOrder = ["majus", "oktober", "februar"];
-    const sA = sessOrder.indexOf(a.exam_session);
-    const sB = sessOrder.indexOf(b.exam_session);
-    if (sA !== sB) return sA - sB;
-    if (a.exam_type !== b.exam_type) return a.exam_type === "kozep" ? -1 : 1;
-    return (a.exam_part ?? "").localeCompare(b.exam_part ?? "");
-  });
+    const groups = Array.from(map.values()).sort((a, b) => {
+      if (b.year !== a.year) return b.year - a.year;
+      const sessOrder = ["majus", "oktober", "februar"];
+      const sA = sessOrder.indexOf(a.exam_session);
+      const sB = sessOrder.indexOf(b.exam_session);
+      if (sA !== sB) return sA - sB;
+      if (a.exam_type !== b.exam_type) return a.exam_type === "kozep" ? -1 : 1;
+      return (a.exam_part ?? "").localeCompare(b.exam_part ?? "");
+    });
+
+    return { groups };
+  } catch (err) {
+    console.error("[feladatsor] Failed to fetch exam groups:", err);
+    return { groups: [], dbError: true };
+  }
 }
 
 export default async function FeladatsorPage() {
-  const groups = await getExamGroups();
+  const { groups, dbError } = await getExamGroups();
 
   const byYear = new Map<number, ExamGroup[]>();
   for (const g of groups) {
@@ -83,6 +84,13 @@ export default async function FeladatsorPage() {
           </p>
         </div>
       </ScrollReveal>
+
+      {dbError && (
+        <div className="text-center py-16 text-slate-500 dark:text-slate-400">
+          <p className="text-lg font-medium text-red-600 dark:text-red-400">Hiba történt az adatok betöltésekor.</p>
+          <p className="text-sm mt-2">Kérjük, töltsd újra az oldalt, vagy próbáld meg később.</p>
+        </div>
+      )}
 
       {Array.from(byYear.entries()).map(([year, yearGroups], yearIndex) => (
         <ScrollReveal key={year} delay={Math.min(yearIndex * 40, 200)}>

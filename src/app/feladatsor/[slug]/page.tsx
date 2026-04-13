@@ -1,15 +1,9 @@
-import { supabase, type Problem } from "@/lib/supabase";
+import { supabase, type Problem, SESSION_LABELS } from "@/lib/supabase";
 import ProblemCard from "@/components/ProblemCard";
 import PrintButton from "@/components/PrintButton";
 import Link from "next/link";
 
 export const revalidate = 300;
-
-const SESSION_LABELS: Record<string, string> = {
-  majus:   "május",
-  oktober: "október",
-  februar: "február",
-};
 
 function parseSlug(slug: string) {
   const parts = slug.split("-");
@@ -21,7 +15,7 @@ function parseSlug(slug: string) {
   return { year, exam_type, exam_session, exam_part };
 }
 
-async function getProblems(slug: string): Promise<Problem[]> {
+async function getProblems(slug: string): Promise<{ problems: Problem[]; dbError?: boolean }> {
   const { year, exam_type, exam_session, exam_part } = parseSlug(slug);
 
   let query = supabase
@@ -40,15 +34,20 @@ async function getProblems(slug: string): Promise<Problem[]> {
     query = query.is("exam_part", null);
   }
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data as Problem[]) ?? [];
+  try {
+    const { data, error } = await query;
+    if (error) throw error;
+    return { problems: (data as Problem[]) ?? [] };
+  } catch (err) {
+    console.error("[feladatsor/slug] Failed to fetch problems:", err);
+    return { problems: [], dbError: true };
+  }
 }
 
 export default async function FeladatsorDetailPage({ params }: { params: { slug: string } }) {
   const { slug } = params;
   const { year, exam_type, exam_session, exam_part } = parseSlug(slug);
-  const problems = await getProblems(slug);
+  const { problems, dbError } = await getProblems(slug);
 
   const sessionLabel = SESSION_LABELS[exam_session] ?? exam_session;
   const typeLabel    = exam_type === "kozep" ? "Középszint" : "Emelt szint";
@@ -90,7 +89,12 @@ export default async function FeladatsorDetailPage({ params }: { params: { slug:
         </div>
       </div>
 
-      {problems.length === 0 ? (
+      {dbError ? (
+        <div className="text-center py-16 text-slate-500 dark:text-slate-400">
+          <p className="text-lg font-medium text-red-600 dark:text-red-400">Hiba történt az adatok betöltésekor.</p>
+          <p className="text-sm mt-2">Kérjük, töltsd újra az oldalt, vagy próbáld meg később.</p>
+        </div>
+      ) : problems.length === 0 ? (
         <div className="text-center py-16 text-slate-500 dark:text-slate-400">
           <p className="text-lg">Nincs elérhető feladat ehhez a feladatsorhoz.</p>
         </div>
