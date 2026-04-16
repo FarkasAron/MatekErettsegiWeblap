@@ -1,5 +1,8 @@
+import { Suspense } from "react";
 import { supabase, type Problem, SESSION_LABELS } from "@/lib/supabase";
 import ProblemCard from "@/components/ProblemCard";
+import ProblemList from "@/components/ProblemList";
+import ViewToggle from "@/components/ViewToggle";
 import PrintButton from "@/components/PrintButton";
 import Link from "next/link";
 
@@ -44,10 +47,17 @@ async function getProblems(slug: string): Promise<{ problems: Problem[]; dbError
   }
 }
 
-export default async function FeladatsorDetailPage({ params }: { params: { slug: string } }) {
+export default async function FeladatsorDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { slug: string };
+  searchParams: { nezet?: string };
+}) {
   const { slug } = params;
   const { year, exam_type, exam_session, exam_part } = parseSlug(slug);
   const { problems, dbError } = await getProblems(slug);
+  const view = searchParams.nezet === "list" ? "list" : "grid";
 
   const sessionLabel = SESSION_LABELS[exam_session] ?? exam_session;
   const typeLabel    = exam_type === "kozep" ? "Középszint" : "Emelt szint";
@@ -77,13 +87,16 @@ export default async function FeladatsorDetailPage({ params }: { params: { slug:
         }`}>
         {/* Subtle dot grid */}
         <div className="absolute inset-0 dot-grid opacity-20" />
-        <div className="relative z-10 flex items-start justify-between gap-4 flex-wrap">
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <div className="text-white/50 text-xs font-medium uppercase tracking-widest mb-2">{year}</div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white print:text-black">{title}</h1>
             <p className="text-white/60 text-sm mt-2">{problems.length} feladat</p>
           </div>
           <div className="no-print flex items-center gap-2 mt-1">
+            <Suspense>
+              <ViewToggle current={view} />
+            </Suspense>
             <PrintButton />
           </div>
         </div>
@@ -98,6 +111,8 @@ export default async function FeladatsorDetailPage({ params }: { params: { slug:
         <div className="text-center py-16 text-slate-500 dark:text-slate-400">
           <p className="text-lg">Nincs elérhető feladat ehhez a feladatsorhoz.</p>
         </div>
+      ) : view === "list" ? (
+        <ProblemList problems={problems} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {problems.map((p) => (

@@ -3,10 +3,28 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { type Problem, TOPIC_LABELS, SESSION_LABELS } from "@/lib/supabase";
-
+import ZoomableImage from "@/components/ZoomableImage";
+import { getAnswerImageUrl } from "@/lib/answers";
+import { usePrintCart } from "@/lib/print-cart";
 
 export default function ProblemCard({ problem }: { problem: Problem }) {
-  const [open, setOpen] = useState(false);
+  const [open,          setOpen]          = useState(false);
+  const [answerOpen,    setAnswerOpen]    = useState(false);
+  const [answerMissing, setAnswerMissing] = useState(false);
+  const answerUrl = getAnswerImageUrl(problem);
+
+  const { add, remove, isInCart } = usePrintCart();
+  const inCart = isInCart(problem.id);
+  const handlePrintToggle = () => {
+    if (inCart) { remove(problem.id); return; }
+    if (!problem.problem_image_url) return;
+    add({
+      id:              problem.id,
+      title:           `${problem.year} ${SESSION_LABELS[problem.exam_session] ?? problem.exam_session} · ${fullType} · ${problem.problem_number}. feladat${subLabel}`,
+      problemImageUrl: problem.problem_image_url,
+      answerImageUrl:  answerUrl,
+    });
+  };
 
   const session  = SESSION_LABELS[problem.exam_session] ?? problem.exam_session;
   const examType = problem.exam_type === "kozep" ? "Közép" : "Emelt";
@@ -14,19 +32,21 @@ export default function ProblemCard({ problem }: { problem: Problem }) {
   const subLabel = problem.sub_part ? ` / ${problem.sub_part}` : "";
   const isEmelt  = problem.exam_type === "emelt";
 
-  // Close on Escape key
+  // Escape closes whichever lightbox is open
   useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    if (!open && !answerOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setOpen(false); setAnswerOpen(false); }
+    };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [open]);
+  }, [open, answerOpen]);
 
-  // Prevent body scroll while open
+  // Prevent body scroll while any lightbox is open
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
+    document.body.style.overflow = (open || answerOpen) ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [open]);
+  }, [open, answerOpen]);
 
   return (
     <>
@@ -102,10 +122,41 @@ export default function ProblemCard({ problem }: { problem: Problem }) {
               ))}
             </div>
           )}
+
+          {/* Footer actions */}
+          {problem.problem_image_url && (
+            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/50 flex items-center gap-2 flex-wrap">
+              {answerUrl && !answerMissing && (
+                <button
+                  onClick={() => setAnswerOpen(true)}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-full transition-colors
+                             bg-slate-100 text-slate-500 hover:bg-slate-200
+                             dark:bg-white/10 dark:text-slate-400 dark:hover:bg-white/15"
+                >
+                  Megoldás
+                </button>
+              )}
+              <button
+                onClick={handlePrintToggle}
+                title={inCart ? "Eltávolítás a nyomtatási listából" : "Hozzáadás a nyomtatási listához"}
+                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors
+                  ${inCart
+                    ? "bg-navy-100 text-navy-700 hover:bg-navy-200 dark:bg-navy-600/30 dark:text-navy-300 dark:hover:bg-navy-600/50"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-400 dark:hover:bg-white/15"
+                  }`}
+              >
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round"
+                    d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" />
+                </svg>
+                {inCart ? "Hozzáadva" : "Nyomtatás"}
+              </button>
+            </div>
+          )}
         </div>
       </article>
 
-      {/* ── Lightbox modal ───────────────────────────────────────────── */}
+      {/* ── Problem lightbox ─────────────────────────────────────────── */}
       {open && (
         <div
           className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-fade-in"
@@ -115,7 +166,6 @@ export default function ProblemCard({ problem }: { problem: Problem }) {
             className="relative w-full max-w-4xl animate-fade-up"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Close button */}
             <button
               onClick={() => setOpen(false)}
               className="absolute -top-11 right-0 text-white/60 hover:text-white transition-colors
@@ -127,27 +177,17 @@ export default function ProblemCard({ problem }: { problem: Problem }) {
               </svg>
             </button>
 
-            {/* Full-size image */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <ZoomableImage
               src={problem.problem_image_url!}
               alt={`${problem.year} ${session} ${fullType} ${problem.problem_number}. feladat${subLabel}`}
-              className="block mx-auto w-auto max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl bg-white"
             />
 
-            {/* Caption */}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm">
-              <span className="text-white/80 font-semibold">
-                {problem.year} {session}
-              </span>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm">
+              <span className="text-white/80 font-semibold">{problem.year} {session}</span>
               <span className="text-white/30">·</span>
-              <span className={`badge text-white ${isEmelt ? "bg-crimson-600" : "bg-navy-600"}`}>
-                {fullType}
-              </span>
+              <span className={`badge text-white ${isEmelt ? "bg-crimson-600" : "bg-navy-600"}`}>{fullType}</span>
               <span className="text-white/30">·</span>
-              <span className="text-white/80">
-                {problem.problem_number}. feladat{subLabel}
-              </span>
+              <span className="text-white/80">{problem.problem_number}. feladat{subLabel}</span>
               {problem.max_points && (
                 <>
                   <span className="text-white/30">·</span>
@@ -156,8 +196,49 @@ export default function ProblemCard({ problem }: { problem: Problem }) {
               )}
             </div>
 
-            {/* Hint */}
-            <p className="mt-2 text-center text-white/30 text-xs">
+            <p className="mt-1 text-center text-white/50 text-xs">
+              Kattints bárhova vagy nyomj Esc-et a bezáráshoz
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Answer lightbox ──────────────────────────────────────────── */}
+      {answerOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-fade-in"
+          onClick={() => setAnswerOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-4xl animate-fade-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setAnswerOpen(false)}
+              className="absolute -top-11 right-0 text-white/60 hover:text-white transition-colors
+                         w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+              aria-label="Bezárás"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <ZoomableImage
+              src={answerUrl!}
+              alt={`Megoldás – ${problem.year} ${session} ${problem.problem_number}. feladat${subLabel}`}
+              onError={() => { setAnswerMissing(true); setAnswerOpen(false); }}
+            />
+
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm">
+              <span className={`badge text-white ${isEmelt ? "bg-crimson-600" : "bg-navy-600"}`}>Megoldás</span>
+              <span className="text-white/30">·</span>
+              <span className="text-white/80 font-semibold">{problem.year} {session}</span>
+              <span className="text-white/30">·</span>
+              <span className="text-white/80">{problem.problem_number}. feladat{subLabel}</span>
+            </div>
+
+            <p className="mt-1 text-center text-white/50 text-xs">
               Kattints bárhova vagy nyomj Esc-et a bezáráshoz
             </p>
           </div>

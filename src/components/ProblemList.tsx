@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { type Problem, TOPIC_LABELS, SESSION_LABELS } from "@/lib/supabase";
+import ZoomableImage from "@/components/ZoomableImage";
+import { getAnswerImageUrl } from "@/lib/answers";
+import { usePrintCart } from "@/lib/print-cart";
 
 function ProblemRow({ problem }: { problem: Problem }) {
   const [open,        setOpen]        = useState(false);
@@ -10,9 +13,22 @@ function ProblemRow({ problem }: { problem: Problem }) {
 
   const session  = SESSION_LABELS[problem.exam_session] ?? problem.exam_session;
   const examType = problem.exam_type === "kozep" ? "Középszint" : "Emelt szint";
-  const fullType = problem.exam_type === "kozep" ? "Középszint" : "Emelt szint";
   const subLabel = problem.sub_part ? ` / ${problem.sub_part}` : "";
   const title    = `${problem.year} ${session} · ${examType} · ${problem.problem_number}. feladat${subLabel}`;
+
+  const answerUrl = getAnswerImageUrl(problem);
+  const { add, remove, isInCart } = usePrintCart();
+  const inCart = isInCart(problem.id);
+  const handlePrintToggle = () => {
+    if (inCart) { remove(problem.id); return; }
+    if (!problem.problem_image_url) return;
+    add({
+      id:              problem.id,
+      title,
+      problemImageUrl: problem.problem_image_url,
+      answerImageUrl:  answerUrl,
+    });
+  };
 
   // Close lightbox on Escape
   useEffect(() => {
@@ -71,7 +87,7 @@ function ProblemRow({ problem }: { problem: Problem }) {
 
         {/* Expanded content */}
         {open && (
-          <div className="px-10 pb-6 pt-1 animate-fade-in border-t border-slate-100 dark:border-slate-800">
+          <div className="px-4 sm:px-10 pb-6 pt-1 animate-fade-in border-t border-slate-100 dark:border-slate-800">
             {problem.problem_image_url ? (
               <div
                 className="relative mt-4 inline-block cursor-zoom-in group/img"
@@ -110,6 +126,26 @@ function ProblemRow({ problem }: { problem: Problem }) {
                 ))}
               </div>
             )}
+
+            {problem.problem_image_url && (
+              <div className="mt-3">
+                <button
+                  onClick={handlePrintToggle}
+                  title={inCart ? "Eltávolítás a nyomtatási listából" : "Hozzáadás a nyomtatási listához"}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors
+                    ${inCart
+                      ? "bg-navy-100 text-navy-700 hover:bg-navy-200 dark:bg-navy-600/30 dark:text-navy-300 dark:hover:bg-navy-600/50"
+                      : "bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-400 dark:hover:bg-white/15"
+                    }`}
+                >
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" />
+                  </svg>
+                  {inCart ? "Hozzáadva a nyomtatási listához" : "Hozzáadás a nyomtatási listához"}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -136,20 +172,17 @@ function ProblemRow({ problem }: { problem: Problem }) {
               </svg>
             </button>
 
-            {/* Full-size image */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <ZoomableImage
               src={problem.problem_image_url!}
               alt={title}
-              className="block mx-auto w-auto max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl bg-white"
             />
 
             {/* Caption */}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm">
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm">
               <span className="text-white/80 font-semibold">{problem.year} {session}</span>
               <span className="text-white/30">·</span>
               <span className={`badge text-white ${problem.exam_type === "emelt" ? "bg-crimson-600" : "bg-navy-600"}`}>
-                {fullType}
+                {examType}
               </span>
               <span className="text-white/30">·</span>
               <span className="text-white/80">{problem.problem_number}. feladat{subLabel}</span>
@@ -161,7 +194,7 @@ function ProblemRow({ problem }: { problem: Problem }) {
               )}
             </div>
 
-            <p className="mt-2 text-center text-white/30 text-xs">
+            <p className="mt-1 text-center text-white/50 text-xs">
               Kattints bárhova vagy nyomj Esc-et a bezáráshoz
             </p>
           </div>

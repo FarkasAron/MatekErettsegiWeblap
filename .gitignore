@@ -19,6 +19,12 @@ scripts/data/raw_pdfs/
 scripts/data/extracted/
 # Per-problem JSONs before DB import (large, regeneratable)
 scripts/data/problems/
+# Answer extraction pipeline intermediates
+scripts/data/answers/
+scripts/data/answers_extracted/
+scripts/data/answers_progress.json
+scripts/data/claude_progress.json
+scripts/data/gemini_progress.json
 
 # manifest.json IS tracked — it records what has been downloaded/classified
 # (do not add scripts/data/manifest.json here)
@@ -32,6 +38,7 @@ scripts/data/problems/
 .next/
 out/
 node_modules/
+tsconfig.tsbuildinfo
 
 # ── Claude Code ──────────────────────────────────────────────────────────────
 # settings.local.json is machine-specific (tool permissions) — not for repo

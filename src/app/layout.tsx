@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import ThemeToggle from "@/components/ThemeToggle";
 import ScrollProgress from "@/components/ScrollProgress";
+import { PrintCartProvider } from "@/lib/print-cart";
+import PrintCartWidget from "@/components/PrintCartWidget";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -23,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         `}} />
       </head>
       <body className="min-h-screen bg-slate-50 dark:bg-[#060d1a] transition-colors duration-300">
+        <PrintCartProvider>
 
         <ScrollProgress />
 
@@ -50,17 +53,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {/* Nav */}
             <nav className="flex items-center gap-0.5 sm:gap-1">
               {[
-                { href: "/feladatok",      label: "Feladatok",    mobileLabel: "Feladatok"  },
-                { href: "/feladatsor",     label: "Feladatsorok", mobileLabel: null          },
-                { href: "/temakoren-kint", label: "Témakörök",    mobileLabel: null          },
-                { href: "/statisztika",    label: "Statisztika",  mobileLabel: "Statisztika" },
-              ].map(({ href, label, mobileLabel }) => (
+                { href: "/feladatok",      label: "Feladatok",    short: "Feladatok"  },
+                { href: "/feladatsor",     label: "Feladatsorok", short: "Sorok"      },
+                { href: "/temakoren-kint", label: "Témakörök",    short: "Témák"      },
+                { href: "/statisztika",    label: "Statisztika",  short: "Stat."      },
+              ].map(({ href, label, short }) => (
                 <Link key={href} href={href}
-                  className={`nav-link px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm
-                              text-slate-600 dark:text-slate-300
-                              hover:text-navy-600 hover:bg-navy-50 dark:hover:bg-white/5 dark:hover:text-white
-                              ${mobileLabel === null ? "hidden sm:block" : ""}`}>
-                  {label}
+                  className="nav-link px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm
+                             text-slate-600 dark:text-slate-300
+                             hover:text-navy-600 hover:bg-navy-50 dark:hover:bg-white/5 dark:hover:text-white">
+                  <span className="sm:hidden">{short}</span>
+                  <span className="hidden sm:inline">{label}</span>
                 </Link>
               ))}
             </nav>
@@ -79,6 +82,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <span>Forrás: Oktatási Hivatal érettségi feladatsorok</span>
           </div>
         </footer>
+        <PrintCartWidget />
+        </PrintCartProvider>
       </body>
     </html>
   );

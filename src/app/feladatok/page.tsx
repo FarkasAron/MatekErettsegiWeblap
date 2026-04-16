@@ -4,6 +4,7 @@ import ProblemList from "@/components/ProblemList";
 import FilterBar from "@/components/FilterBar";
 import ViewToggle from "@/components/ViewToggle";
 import PrintButton from "@/components/PrintButton";
+import RandomProblemButton from "@/components/RandomProblemButton";
 import { Suspense } from "react";
 
 const PAGE_SIZE = 50;
@@ -12,9 +13,10 @@ const MAX_YEAR  = 2035;
 
 const VALID_SZINT = new Set(["kozep", "emelt"]);
 const VALID_TIPUS = new Set(["rovid", "hosszu"]);
+const VALID_REND  = new Set(["ev-asc", "pont-desc", "pont-asc"]);
 
 interface Props {
-  searchParams: { tema?: string; szint?: string; ev?: string; nezet?: string; tipus?: string; oldal?: string };
+  searchParams: { tema?: string; szint?: string; ev?: string; nezet?: string; tipus?: string; oldal?: string; rend?: string; q?: string };
 }
 
 function sanitizeFilters(raw: Props["searchParams"]): Props["searchParams"] {
@@ -26,13 +28,17 @@ function sanitizeFilters(raw: Props["searchParams"]): Props["searchParams"] {
     ? String(rawEv)
     : undefined;
 
+  const q = raw.q ? raw.q.trim().slice(0, 100).replace(/[<>"]/g, "") || undefined : undefined;
+
   return {
     oldal: String(oldal),
     szint: raw.szint && VALID_SZINT.has(raw.szint) ? raw.szint : undefined,
     tema:  raw.tema  && (raw.tema in TOPIC_LABELS)  ? raw.tema  : undefined,
     tipus: raw.tipus && VALID_TIPUS.has(raw.tipus)  ? raw.tipus : undefined,
     nezet: raw.nezet === "list" ? "list" : undefined,
+    rend:  raw.rend  && VALID_REND.has(raw.rend)   ? raw.rend  : undefined,
     ev,
+    q,
   };
 }
 
@@ -45,24 +51,49 @@ function buildPageUrl(filters: Props["searchParams"], page: number): string {
   if (filters.ev)    params.set("ev",    filters.ev);
   if (filters.nezet) params.set("nezet", filters.nezet);
   if (filters.tipus) params.set("tipus", filters.tipus);
+  if (filters.rend)  params.set("rend",  filters.rend);
+  if (filters.q)     params.set("q",     filters.q);
   if (page > 1)      params.set("oldal", String(page));
-  const q = params.toString();
-  return `/feladatok${q ? `?${q}` : ""}`;
+  const qs = params.toString();
+  return `/feladatok${qs ? `?${qs}` : ""}`;
 }
 
 async function getProblems(filters: Props["searchParams"]): Promise<{ problems: Problem[]; total: number; dbError?: boolean }> {
   const page   = Math.max(1, parseInt(filters.oldal ?? "1"));
   const offset = (page - 1) * PAGE_SIZE;
 
+  const rend = filters.rend;
   let dataQuery = supabase
     .from("problems")
     .select("id,year,exam_type,exam_session,exam_part,problem_number,sub_part,problem_image_url,max_points,topic_tags,ocr_used")
-    .eq("human_reviewed", true)
-    .order("year", { ascending: false })
-    .order("exam_session")
-    .order("problem_number")
-    .order("sub_part")
-    .range(offset, offset + PAGE_SIZE - 1);
+    .eq("human_reviewed", true);
+
+  if (rend === "pont-desc") {
+    dataQuery = dataQuery
+      .order("max_points", { ascending: false, nullsFirst: false })
+      .order("year", { ascending: false })
+      .order("problem_number");
+  } else if (rend === "pont-asc") {
+    dataQuery = dataQuery
+      .order("max_points", { ascending: true, nullsFirst: false })
+      .order("year", { ascending: false })
+      .order("problem_number");
+  } else if (rend === "ev-asc") {
+    dataQuery = dataQuery
+      .order("year", { ascending: true })
+      .order("exam_session")
+      .order("problem_number")
+      .order("sub_part");
+  } else {
+    // default: newest first
+    dataQuery = dataQuery
+      .order("year", { ascending: false })
+      .order("exam_session")
+      .order("problem_number")
+      .order("sub_part");
+  }
+
+  dataQuery = dataQuery.range(offset, offset + PAGE_SIZE - 1);
 
   let countQuery = supabase
     .from("problems")
@@ -82,12 +113,36 @@ async function getProblems(filters: Props["searchParams"]): Promise<{ problems: 
     countQuery = countQuery.eq("year", parseInt(filters.ev));
   }
   if (filters.tipus === "rovid") {
-    dataQuery  = dataQuery.lte("problem_number", 4);
-    countQuery = countQuery.lte("problem_number", 4);
+    if (filters.szint === "kozep") {
+      dataQuery  = dataQuery.lte("problem_number", 12);
+      countQuery = countQuery.lte("problem_number", 12);
+    } else if (filters.szint === "emelt") {
+      dataQuery  = dataQuery.lte("problem_number", 4);
+      countQuery = countQuery.lte("problem_number", 4);
+    } else {
+      // No szint: kozep 1–12 OR emelt 1–4
+      const cond = "and(exam_type.eq.kozep,problem_number.lte.12),and(exam_type.eq.emelt,problem_number.lte.4)";
+      dataQuery  = dataQuery.or(cond);
+      countQuery = countQuery.or(cond);
+    }
+  }
+  if (filters.q) {
+    dataQuery  = dataQuery.ilike("statement_text", `%${filters.q}%`);
+    countQuery = countQuery.ilike("statement_text", `%${filters.q}%`);
   }
   if (filters.tipus === "hosszu") {
-    dataQuery  = dataQuery.gte("problem_number", 5);
-    countQuery = countQuery.gte("problem_number", 5);
+    if (filters.szint === "kozep") {
+      dataQuery  = dataQuery.gte("problem_number", 13);
+      countQuery = countQuery.gte("problem_number", 13);
+    } else if (filters.szint === "emelt") {
+      dataQuery  = dataQuery.gte("problem_number", 5);
+      countQuery = countQuery.gte("problem_number", 5);
+    } else {
+      // No szint: kozep 13+ OR emelt 5+
+      const cond = "and(exam_type.eq.kozep,problem_number.gte.13),and(exam_type.eq.emelt,problem_number.gte.5)";
+      dataQuery  = dataQuery.or(cond);
+      countQuery = countQuery.or(cond);
+    }
   }
 
   try {
@@ -115,20 +170,25 @@ export default async function FeladatokPage({ searchParams }: Props) {
     ev:    filters.ev,
     nezet: filters.nezet,
     tipus: filters.tipus,
+    rend:  filters.rend,
+    q:     filters.q,
   };
 
   const topicLabel = filters.tema  ? TOPIC_LABELS[filters.tema] : null;
   const examLabel  = filters.szint === "kozep" ? "Középszint"
                    : filters.szint === "emelt" ? "Emelt szint" : null;
-  const tipusLabel = filters.tipus === "rovid"  ? "Rövid (1–4)"
-                   : filters.tipus === "hosszu" ? "Hosszú (5+)" : null;
+  const tipusLabel = filters.tipus === "rovid"
+    ? filters.szint === "kozep" ? "Rövid (1–12)" : filters.szint === "emelt" ? "Rövid (1–4)" : "Rövid"
+    : filters.tipus === "hosszu"
+    ? filters.szint === "kozep" ? "Hosszú (13–18)" : filters.szint === "emelt" ? "Hosszú (5–9)" : "Hosszú"
+    : null;
 
   const titleParts = [topicLabel, examLabel, tipusLabel, filters.ev].filter(Boolean);
   const pageTitle  = titleParts.length > 0 ? titleParts.join(" · ") : "Összes feladat";
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white print:text-black">{pageTitle}</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -136,7 +196,8 @@ export default async function FeladatokPage({ searchParams }: Props) {
             {totalPages > 1 && ` · ${fromItem}–${toItem} látható`}
           </p>
         </div>
-        <div className="flex items-center gap-2 no-print">
+        <div className="flex items-center gap-2 no-print self-start sm:self-auto shrink-0">
+          <RandomProblemButton />
           <Suspense>
             <ViewToggle current={view} />
           </Suspense>

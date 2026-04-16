@@ -18,7 +18,7 @@ const nextConfig = {
       // unsafe-eval is needed by webpack HMR in development
       `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https://*.supabase.co",
+      "img-src 'self' blob: data: https://*.supabase.co",
       "font-src 'self'",
       // ws://localhost:* allows the Next.js dev server HMR websocket
       `connect-src 'self' https://*.supabase.co${isDev ? " ws://localhost:* http://localhost:*" : ""}`,
