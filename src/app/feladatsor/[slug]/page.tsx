@@ -7,7 +7,7 @@ import ViewToggle from "@/components/ViewToggle";
 import PrintButton from "@/components/PrintButton";
 import Link from "next/link";
 
-export const revalidate = 300;
+export const dynamic = 'force-dynamic';
 
 function parseSlug(slug: string) {
   const parts = slug.split("-");

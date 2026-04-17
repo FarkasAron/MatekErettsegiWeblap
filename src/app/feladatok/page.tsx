@@ -43,7 +43,7 @@ function sanitizeFilters(raw: Props["searchParams"]): Props["searchParams"] {
   };
 }
 
-export const revalidate = 300;
+export const dynamic = 'force-dynamic';
 
 function buildPageUrl(filters: Props["searchParams"], page: number): string {
   const params = new URLSearchParams();

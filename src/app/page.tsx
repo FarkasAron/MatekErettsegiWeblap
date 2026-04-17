@@ -5,7 +5,7 @@ import db from "@/lib/db";
 import ScrollReveal from "@/components/ScrollReveal";
 import StatCounter from "@/components/StatCounter";
 
-export const revalidate = 300;
+export const dynamic = 'force-dynamic';
 
 // Fixed positions — no Math.random() to avoid hydration mismatch
 const MATH_SYMBOLS = [

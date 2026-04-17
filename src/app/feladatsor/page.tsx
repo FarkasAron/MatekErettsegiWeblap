@@ -3,7 +3,7 @@ import db from "@/lib/db";
 import Link from "next/link";
 import ScrollReveal from "@/components/ScrollReveal";
 
-export const revalidate = 300;
+export const dynamic = 'force-dynamic';
 
 interface ExamGroup {
   year: number;

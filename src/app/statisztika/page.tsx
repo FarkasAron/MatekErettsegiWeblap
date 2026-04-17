@@ -5,7 +5,7 @@ import ScrollReveal from "@/components/ScrollReveal";
 import AnimatedBar from "@/components/AnimatedBar";
 import StatCounter from "@/components/StatCounter";
 
-export const revalidate = 300;
+export const dynamic = 'force-dynamic';
 
 async function getTopicCounts(): Promise<{ topics: { slug: string; label: string; count: number }[]; dbError?: boolean }> {
   try {
