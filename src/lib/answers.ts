@@ -1,10 +1,12 @@
-import { supabase, type Problem } from "@/lib/supabase";
+import { type Problem } from "@/lib/supabase";
 
 const SESSION_SHORT: Record<string, string> = {
   majus:   "maj",
   oktober: "okt",
   februar: "febr",
 };
+
+const IMAGE_BASE = process.env.NEXT_PUBLIC_IMAGE_BASE_URL ?? "http://192.168.0.52/images";
 
 export function getAnswerImageUrl(problem: Problem): string | null {
   const typePrefix   = problem.exam_type === "kozep" ? "k" : "e";
@@ -14,5 +16,5 @@ export function getAnswerImageUrl(problem: Problem): string | null {
   const num  = String(problem.problem_number).padStart(3, "0");
   const stem = `${typePrefix}_mat_${yearShort}${sessionShort}_ut`;
   const path = `${stem}/crops/${stem}_ans_${num}.png`;
-  return supabase.storage.from("problem-images").getPublicUrl(path).data.publicUrl;
+  return `${IMAGE_BASE}/${path}`;
 }

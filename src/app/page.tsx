@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
-import { supabase, TOPIC_LABELS } from "@/lib/supabase";
+import { TOPIC_LABELS } from "@/lib/supabase";
+import db from "@/lib/db";
 import ScrollReveal from "@/components/ScrollReveal";
 import StatCounter from "@/components/StatCounter";
 
@@ -34,15 +35,15 @@ const FEATURED_TOPICS = [
 ];
 
 export default async function HomePage() {
-  const [{ count: problemCount }, { data: yearData }, { data: sessionData }] = await Promise.all([
-    supabase.from("problems").select("*", { count: "exact", head: true }).eq("human_reviewed", true),
-    supabase.from("problems").select("year").eq("human_reviewed", true),
-    supabase.from("problems").select("exam_session, year, exam_type").eq("human_reviewed", true),
+  const [countResult, yearResult, sessionResult] = await Promise.all([
+    db.query("SELECT COUNT(*) FROM problems WHERE human_reviewed = true"),
+    db.query("SELECT year FROM problems WHERE human_reviewed = true"),
+    db.query("SELECT exam_session, year, exam_type FROM problems WHERE human_reviewed = true"),
   ]);
 
-  const yearCount    = new Set(yearData?.map((r) => r.year)).size;
-  const sessionCount = new Set(sessionData?.map((r) => `${r.year}-${r.exam_type}-${r.exam_session}`)).size;
-  const total        = problemCount ?? 0;
+  const yearCount    = new Set(yearResult.rows.map((r: { year: number }) => r.year)).size;
+  const sessionCount = new Set(sessionResult.rows.map((r: { year: number; exam_type: string; exam_session: string }) => `${r.year}-${r.exam_type}-${r.exam_session}`)).size;
+  const total        = parseInt(countResult.rows[0].count) ?? 0;
   const totalStr     = total >= 1000
     ? `${Math.floor(total / 1000)} ${String(total % 1000).padStart(3, "0")}`
     : String(total);

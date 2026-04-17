@@ -1,4 +1,5 @@
-import { supabase, TOPIC_LABELS } from "@/lib/supabase";
+import { TOPIC_LABELS } from "@/lib/supabase";
+import db from "@/lib/db";
 import Link from "next/link";
 import ScrollReveal from "@/components/ScrollReveal";
 import AnimatedBar from "@/components/AnimatedBar";
@@ -8,15 +9,10 @@ export const revalidate = 300;
 
 async function getTopicCounts(): Promise<{ topics: { slug: string; label: string; count: number }[]; dbError?: boolean }> {
   try {
-    const { data, error } = await supabase
-      .from("problems")
-      .select("topic_tags")
-      .eq("human_reviewed", true)
-      .limit(5000);
-    if (error) throw error;
+    const result = await db.query("SELECT topic_tags FROM problems WHERE human_reviewed = true");
 
     const counts: Record<string, number> = {};
-    for (const row of data ?? []) {
+    for (const row of result.rows) {
       for (const tag of row.topic_tags ?? []) {
         counts[tag] = (counts[tag] || 0) + 1;
       }
@@ -35,19 +31,11 @@ async function getTopicCounts(): Promise<{ topics: { slug: string; label: string
 
 async function getSummary(): Promise<{ total: number; kozep: number; emelt: number; dbError?: boolean }> {
   try {
-    const { data, error } = await supabase
-      .from("problems")
-      .select("exam_type")
-      .eq("human_reviewed", true)
-      .limit(5000);
-    if (error) throw error;
-
-    const rows  = data ?? [];
-    const total = rows.length;
-    const kozep = rows.filter((r) => r.exam_type === "kozep").length;
-    const emelt = rows.filter((r) => r.exam_type === "emelt").length;
-
-    return { total, kozep, emelt };
+    const result = await db.query(
+      "SELECT COUNT(*) FILTER (WHERE exam_type = 'kozep') AS kozep, COUNT(*) FILTER (WHERE exam_type = 'emelt') AS emelt, COUNT(*) AS total FROM problems WHERE human_reviewed = true"
+    );
+    const row = result.rows[0];
+    return { total: parseInt(row.total), kozep: parseInt(row.kozep), emelt: parseInt(row.emelt) };
   } catch (err) {
     console.error("[statisztika] Failed to fetch summary:", err);
     return { total: 0, kozep: 0, emelt: 0, dbError: true };

@@ -1,10 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
 export type Problem = {
   id: string;
   year: number;
@@ -29,28 +22,26 @@ export const TOPIC_LABELS: Record<string, string> = {
   halmazok:               "Halmazok",
   logika:                 "Matematikai logika",
   kombinatorika:          "Kombinatorika",
-  grafelmelet:            "Gráfelmélet",
   valoszinuseg:           "Valószínűség-számítás",
   statisztika:            "Statisztika",
-  "szamok-muveletek":     "Számok és műveletek",
-  szamrendszerek:         "Számrendszerek",
-  szamelmelet:            "Számelmélet",
-  algebra:                "Algebra",
-  egyenletek:             "Egyenletek és egyenlőtlenségek",
-  fuggvenyek:             "Függvények és grafikonok",
+  sorozatok:              "Sorozatok",
+  fuggvenyek:             "Függvények",
   exponencialis:          "Exponenciális és logaritmikus függvények",
   trigonometria:          "Trigonometria",
-  sorozatok:              "Sorozatok",
-  "penzugyi-matematika":  "Pénzügyi matematika",
   "geometria-sik":        "Síkgeometria",
   "geometria-ter":        "Térgeometria",
-  "koordinata-geometria": "Koordinátageometria",
+  "koordinata-geometria": "Koordináta-geometria",
   vektorok:               "Vektorok",
-  transzformacio:         "Geometriai transzformációk",
-  hatarertek:             "Határérték és folytonosság",
+  egyenletek:             "Egyenletek és egyenlőtlenségek",
   differencialszamitas:   "Differenciálszámítás",
   integralszamitas:       "Integrálszámítás",
-  bizonyitasok:           "Bizonyítások és elmélet",
+  komplex:                "Komplex számok",
+  szamelmelet:            "Számelmélet",
+  bizonyitas:             "Bizonyítás",
   szovegfeladas:          "Szöveges feladat",
+  penzugy:                "Pénzügyi matematika",
+  matrixok:               "Mátrixok",
+  grafelmelet:            "Gráfelmélet",
+  informalis:             "Informális logika",
+  egyeb:                  "Egyéb",
 };
-

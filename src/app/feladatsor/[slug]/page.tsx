@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { supabase, type Problem, SESSION_LABELS } from "@/lib/supabase";
+import { type Problem, SESSION_LABELS } from "@/lib/supabase";
+import db from "@/lib/db";
 import ProblemCard from "@/components/ProblemCard";
 import ProblemList from "@/components/ProblemList";
 import ViewToggle from "@/components/ViewToggle";
@@ -21,26 +22,25 @@ function parseSlug(slug: string) {
 async function getProblems(slug: string): Promise<{ problems: Problem[]; dbError?: boolean }> {
   const { year, exam_type, exam_session, exam_part } = parseSlug(slug);
 
-  let query = supabase
-    .from("problems")
-    .select("id,year,exam_type,exam_session,exam_part,problem_number,sub_part,problem_image_url,max_points,topic_tags,ocr_used")
-    .eq("human_reviewed", true)
-    .eq("year", year)
-    .eq("exam_type", exam_type)
-    .eq("exam_session", exam_session)
-    .order("problem_number")
-    .order("sub_part");
-
-  if (exam_part) {
-    query = query.eq("exam_part", exam_part);
-  } else {
-    query = query.is("exam_part", null);
-  }
-
   try {
-    const { data, error } = await query;
-    if (error) throw error;
-    return { problems: (data as Problem[]) ?? [] };
+    const result = exam_part
+      ? await db.query(
+          `SELECT id, year, exam_type, exam_session, exam_part, problem_number, sub_part,
+                  problem_image_url, max_points, topic_tags, ocr_used
+           FROM problems WHERE human_reviewed = true AND year = $1 AND exam_type = $2
+             AND exam_session = $3 AND exam_part = $4
+           ORDER BY problem_number, sub_part NULLS LAST`,
+          [year, exam_type, exam_session, exam_part]
+        )
+      : await db.query(
+          `SELECT id, year, exam_type, exam_session, exam_part, problem_number, sub_part,
+                  problem_image_url, max_points, topic_tags, ocr_used
+           FROM problems WHERE human_reviewed = true AND year = $1 AND exam_type = $2
+             AND exam_session = $3 AND exam_part IS NULL
+           ORDER BY problem_number, sub_part NULLS LAST`,
+          [year, exam_type, exam_session]
+        );
+    return { problems: result.rows as Problem[] };
   } catch (err) {
     console.error("[feladatsor/slug] Failed to fetch problems:", err);
     return { problems: [], dbError: true };

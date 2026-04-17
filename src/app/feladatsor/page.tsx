@@ -1,4 +1,5 @@
-import { supabase, SESSION_LABELS } from "@/lib/supabase";
+import { SESSION_LABELS } from "@/lib/supabase";
+import db from "@/lib/db";
 import Link from "next/link";
 import ScrollReveal from "@/components/ScrollReveal";
 
@@ -19,19 +20,12 @@ function toSlug(g: ExamGroup): string {
 
 async function getExamGroups(): Promise<{ groups: ExamGroup[]; dbError?: boolean }> {
   try {
-    const { data, error } = await supabase
-      .from("problems")
-      .select("year,exam_type,exam_session,exam_part")
-      .eq("human_reviewed", true)
-      .order("year", { ascending: false })
-      .order("exam_session")
-      .order("exam_type")
-      .limit(2000);
-
-    if (error) throw error;
+    const result = await db.query(
+      "SELECT year, exam_type, exam_session, exam_part FROM problems WHERE human_reviewed = true ORDER BY year DESC, exam_session, exam_type LIMIT 2000"
+    );
 
     const map = new Map<string, ExamGroup>();
-    for (const row of data ?? []) {
+    for (const row of result.rows) {
       const key = `${row.year}-${row.exam_type}-${row.exam_session}-${row.exam_part ?? ""}`;
       if (map.has(key)) {
         map.get(key)!.count++;

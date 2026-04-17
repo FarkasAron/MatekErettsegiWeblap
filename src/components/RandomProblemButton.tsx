@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase, type Problem, TOPIC_LABELS, SESSION_LABELS } from "@/lib/supabase";
+import { type Problem, TOPIC_LABELS, SESSION_LABELS } from "@/lib/supabase";
 import { getAnswerImageUrl } from "@/lib/answers";
 import { usePrintCart } from "@/lib/print-cart";
 import ZoomableImage from "@/components/ZoomableImage";
@@ -22,26 +22,10 @@ export default function RandomProblemButton() {
     setAnswerOpen(false);
     setAnswerMissing(false);
     try {
-      // Count problems that have an image
-      const { count } = await supabase
-        .from("problems")
-        .select("id", { count: "exact", head: true })
-        .eq("human_reviewed", true)
-        .not("problem_image_url", "is", null);
-
-      if (!count) return;
-      const offset = Math.floor(Math.random() * count);
-
-      const { data, error } = await supabase
-        .from("problems")
-        .select("id,year,exam_type,exam_session,exam_part,problem_number,sub_part,problem_image_url,max_points,topic_tags,ocr_used")
-        .eq("human_reviewed", true)
-        .not("problem_image_url", "is", null)
-        .range(offset, offset)
-        .single();
-
-      if (error) throw error;
-      setProblem(data as Problem);
+      const res = await fetch("/api/random-problem");
+      if (!res.ok) throw new Error("fetch failed");
+      const data = await res.json();
+      if (data) setProblem(data as Problem);
     } catch (err) {
       console.error("[random] fetch failed:", err);
     } finally {

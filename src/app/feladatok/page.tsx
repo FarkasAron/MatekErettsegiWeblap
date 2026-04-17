@@ -1,4 +1,5 @@
-import { supabase, TOPIC_LABELS, type Problem } from "@/lib/supabase";
+import { TOPIC_LABELS, type Problem } from "@/lib/supabase";
+import db from "@/lib/db";
 import ProblemCard from "@/components/ProblemCard";
 import ProblemList from "@/components/ProblemList";
 import FilterBar from "@/components/FilterBar";
@@ -62,93 +63,66 @@ async function getProblems(filters: Props["searchParams"]): Promise<{ problems: 
   const page   = Math.max(1, parseInt(filters.oldal ?? "1"));
   const offset = (page - 1) * PAGE_SIZE;
 
-  const rend = filters.rend;
-  let dataQuery = supabase
-    .from("problems")
-    .select("id,year,exam_type,exam_session,exam_part,problem_number,sub_part,problem_image_url,max_points,topic_tags,ocr_used")
-    .eq("human_reviewed", true);
-
-  if (rend === "pont-desc") {
-    dataQuery = dataQuery
-      .order("max_points", { ascending: false, nullsFirst: false })
-      .order("year", { ascending: false })
-      .order("problem_number");
-  } else if (rend === "pont-asc") {
-    dataQuery = dataQuery
-      .order("max_points", { ascending: true, nullsFirst: false })
-      .order("year", { ascending: false })
-      .order("problem_number");
-  } else if (rend === "ev-asc") {
-    dataQuery = dataQuery
-      .order("year", { ascending: true })
-      .order("exam_session")
-      .order("problem_number")
-      .order("sub_part");
-  } else {
-    // default: newest first
-    dataQuery = dataQuery
-      .order("year", { ascending: false })
-      .order("exam_session")
-      .order("problem_number")
-      .order("sub_part");
-  }
-
-  dataQuery = dataQuery.range(offset, offset + PAGE_SIZE - 1);
-
-  let countQuery = supabase
-    .from("problems")
-    .select("*", { count: "exact", head: true })
-    .eq("human_reviewed", true);
+  const conditions: string[] = ["human_reviewed = true"];
+  const params: unknown[]    = [];
 
   if (filters.szint) {
-    dataQuery  = dataQuery.eq("exam_type", filters.szint);
-    countQuery = countQuery.eq("exam_type", filters.szint);
+    params.push(filters.szint);
+    conditions.push(`exam_type = $${params.length}`);
   }
   if (filters.tema) {
-    dataQuery  = dataQuery.contains("topic_tags", [filters.tema]);
-    countQuery = countQuery.contains("topic_tags", [filters.tema]);
+    params.push(filters.tema);
+    conditions.push(`$${params.length} = ANY(topic_tags)`);
   }
   if (filters.ev) {
-    dataQuery  = dataQuery.eq("year", parseInt(filters.ev));
-    countQuery = countQuery.eq("year", parseInt(filters.ev));
+    params.push(parseInt(filters.ev));
+    conditions.push(`year = $${params.length}`);
+  }
+  if (filters.q) {
+    params.push(`%${filters.q}%`);
+    conditions.push(`statement_text ILIKE $${params.length}`);
   }
   if (filters.tipus === "rovid") {
     if (filters.szint === "kozep") {
-      dataQuery  = dataQuery.lte("problem_number", 12);
-      countQuery = countQuery.lte("problem_number", 12);
+      conditions.push("problem_number <= 12");
     } else if (filters.szint === "emelt") {
-      dataQuery  = dataQuery.lte("problem_number", 4);
-      countQuery = countQuery.lte("problem_number", 4);
+      conditions.push("problem_number <= 4");
     } else {
-      // No szint: kozep 1–12 OR emelt 1–4
-      const cond = "and(exam_type.eq.kozep,problem_number.lte.12),and(exam_type.eq.emelt,problem_number.lte.4)";
-      dataQuery  = dataQuery.or(cond);
-      countQuery = countQuery.or(cond);
+      conditions.push("((exam_type = 'kozep' AND problem_number <= 12) OR (exam_type = 'emelt' AND problem_number <= 4))");
     }
-  }
-  if (filters.q) {
-    dataQuery  = dataQuery.ilike("statement_text", `%${filters.q}%`);
-    countQuery = countQuery.ilike("statement_text", `%${filters.q}%`);
   }
   if (filters.tipus === "hosszu") {
     if (filters.szint === "kozep") {
-      dataQuery  = dataQuery.gte("problem_number", 13);
-      countQuery = countQuery.gte("problem_number", 13);
+      conditions.push("problem_number >= 13");
     } else if (filters.szint === "emelt") {
-      dataQuery  = dataQuery.gte("problem_number", 5);
-      countQuery = countQuery.gte("problem_number", 5);
+      conditions.push("problem_number >= 5");
     } else {
-      // No szint: kozep 13+ OR emelt 5+
-      const cond = "and(exam_type.eq.kozep,problem_number.gte.13),and(exam_type.eq.emelt,problem_number.gte.5)";
-      dataQuery  = dataQuery.or(cond);
-      countQuery = countQuery.or(cond);
+      conditions.push("((exam_type = 'kozep' AND problem_number >= 13) OR (exam_type = 'emelt' AND problem_number >= 5))");
     }
   }
 
+  const where = conditions.join(" AND ");
+
+  const rend = filters.rend;
+  const orderBy =
+    rend === "pont-desc" ? "max_points DESC NULLS LAST, year DESC, problem_number ASC" :
+    rend === "pont-asc"  ? "max_points ASC NULLS LAST, year DESC, problem_number ASC"  :
+    rend === "ev-asc"    ? "year ASC, exam_session ASC, problem_number ASC, sub_part ASC NULLS LAST" :
+                           "year DESC, exam_session ASC, problem_number ASC, sub_part ASC NULLS LAST";
+
   try {
-    const [{ data, error }, { count }] = await Promise.all([dataQuery, countQuery]);
-    if (error) throw error;
-    return { problems: (data as Problem[]) ?? [], total: count ?? 0 };
+    const dataParams = [...params, PAGE_SIZE, offset];
+    const [dataResult, countResult] = await Promise.all([
+      db.query(
+        `SELECT id, year, exam_type, exam_session, exam_part, problem_number, sub_part,
+                problem_image_url, max_points, topic_tags, ocr_used
+         FROM problems WHERE ${where} ORDER BY ${orderBy}
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        dataParams
+      ),
+      db.query(`SELECT COUNT(*) FROM problems WHERE ${where}`, params),
+    ]);
+    return { problems: dataResult.rows as Problem[], total: parseInt(countResult.rows[0].count) };
   } catch (err) {
     console.error("[feladatok] Failed to fetch problems:", err);
     return { problems: [], total: 0, dbError: true };
