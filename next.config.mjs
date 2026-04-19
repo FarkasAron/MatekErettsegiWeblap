@@ -3,18 +3,7 @@ const isDev = process.env.NODE_ENV === "development";
 
 const nextConfig = {
   images: {
-    remotePatterns: [
-      {
-        protocol: "http",
-        hostname: "192.168.0.52",
-        pathname: "/images/**",
-      },
-      {
-        protocol: "https",
-        hostname: "*.supabase.co",
-        pathname: "/storage/v1/object/public/**",
-      },
-    ],
+    remotePatterns: [],
   },
 
   async headers() {
@@ -23,10 +12,10 @@ const nextConfig = {
       // unsafe-eval is needed by webpack HMR in development
       `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' blob: data: https://*.supabase.co http://192.168.0.52",
+      "img-src 'self' blob: data:",
       "font-src 'self'",
       // ws://localhost:* allows the Next.js dev server HMR websocket
-      `connect-src 'self' http://192.168.0.52${isDev ? " ws://localhost:* http://localhost:*" : ""}`,
+      `connect-src 'self'${isDev ? " ws://localhost:* http://localhost:*" : ""}`,
       "frame-src 'none'",
       "object-src 'none'",
     ].join("; ");
