@@ -64,7 +64,7 @@ export default async function FeladatsorDetailPage({
   const sessionLabel = SESSION_LABELS[exam_session] ?? exam_session;
   const typeLabel    = exam_type === "kozep" ? "Középszint" : "Emelt szint";
   const partLabel    = exam_part ? ` · ${exam_part}. rész` : "";
-  const matmaLabel   = is_secondary_language ? " · Kisebbségi változat" : "";
+  const matmaLabel   = is_secondary_language ? " · Matma változat" : "";
   const title        = `${year} ${sessionLabel} · ${typeLabel}${partLabel}${matmaLabel}`;
 
   const isEmelt = exam_type === "emelt";

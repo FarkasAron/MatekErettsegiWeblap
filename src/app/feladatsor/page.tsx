@@ -131,7 +131,7 @@ export default async function FeladatsorPage() {
                         </span>
                         {isMatma && (
                           <span className="badge text-white text-[10px] bg-amber-600">
-                            Kisebbségi
+                            Matma
                           </span>
                         )}
                         <span className="text-xs text-slate-400 dark:text-slate-500">{g.count} feladat</span>
