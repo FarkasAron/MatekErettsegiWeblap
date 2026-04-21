@@ -95,7 +95,7 @@ export default function ZoomableImage({ src, alt, onError }: Props) {
       {/* Scrollable image container — image grows on zoom, scroll to pan */}
       <div
         ref={containerRef}
-        className="w-full overflow-auto rounded-2xl shadow-2xl bg-white"
+        className="w-full max-h-[70vh] overflow-auto rounded-2xl shadow-2xl bg-white"
         style={{ touchAction: "pan-x pan-y" }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
