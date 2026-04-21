@@ -43,6 +43,7 @@ function clampPan(
 export default function ZoomableImage({ src, alt, onError }: Props) {
   const [t, setT]           = useState({ scale: 1, x: 0, y: 0 });
   const [dragging, setDrag] = useState(false);
+  const scaleRef            = useRef(1);
 
   // Explicit pixel size computed on load — guarantees correct aspect ratio
   const [imgW, setImgW] = useState<number | null>(null);
@@ -75,12 +76,31 @@ export default function ZoomableImage({ src, alt, onError }: Props) {
     if (img?.complete && img.naturalWidth > 0) computeSize();
   }, [computeSize]);
 
+  // Keep scaleRef in sync so touch handlers can read scale synchronously
+  useEffect(() => { scaleRef.current = t.scale; }, [t.scale]);
+
   // Reset when src changes
   useEffect(() => {
     setImgW(null);
     setImgH(null);
     setT({ scale: 1, x: 0, y: 0 });
   }, [src]);
+
+  // Recompute display size whenever the container resizes (covers orientation change)
+  useEffect(() => {
+    const outer = outerRef.current;
+    if (!outer) return;
+    const ro = new ResizeObserver(computeSize);
+    ro.observe(outer);
+    return () => ro.disconnect();
+  }, [computeSize]);
+
+  // Reset zoom on orientation change so stale pan offsets don't carry over
+  useEffect(() => {
+    const reset = () => setT({ scale: 1, x: 0, y: 0 });
+    window.addEventListener("orientationchange", reset);
+    return () => window.removeEventListener("orientationchange", reset);
+  }, []);
 
   // ── Wheel zoom ──────────────────────────────────────────────────
   useEffect(() => {
@@ -122,10 +142,11 @@ export default function ZoomableImage({ src, alt, onError }: Props) {
     };
 
     const onMove = (e: TouchEvent) => {
-      e.preventDefault();
       const rect = el.getBoundingClientRect();
 
       if (e.touches.length === 2 && pDist !== null && pMid !== null) {
+        // Always intercept pinch-to-zoom — never let the browser handle it
+        e.preventDefault();
         const nDist = D(e.touches);
         const nMid  = Md(e.touches);
         const cx = nMid.x - rect.left - rect.width  / 2;
@@ -143,6 +164,8 @@ export default function ZoomableImage({ src, alt, onError }: Props) {
         pDist = nDist; pMid = nMid;
 
       } else if (e.touches.length === 1 && pTouch) {
+        // Only block native page scroll when we're actually panning a zoomed image
+        if (scaleRef.current > 1) e.preventDefault();
         const dx = e.touches[0].clientX - pTouch.x;
         const dy = e.touches[0].clientY - pTouch.y;
         setT(prev => {
@@ -208,7 +231,7 @@ export default function ZoomableImage({ src, alt, onError }: Props) {
             width:  sizeReady ? imgW  : "100%",
             height: sizeReady ? imgH  : "auto",
             maxWidth: "100%",
-            touchAction: "none",
+            touchAction: t.scale > 1 ? "none" : "pan-x pan-y",
             cursor: dragging ? "grabbing" : t.scale > 1 ? "grab" : "default",
           }}
           onMouseDown={onMouseDown}

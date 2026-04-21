@@ -11,16 +11,18 @@ export const dynamic = 'force-dynamic';
 
 function parseSlug(slug: string) {
   const parts = slug.split("-");
-  // parts[0] = year, parts[1] = exam_type, parts[2] = exam_session, parts[3] = exam_part (optional)
-  const year         = parseInt(parts[0]);
-  const exam_type    = parts[1] as "kozep" | "emelt";
-  const exam_session = parts[2];
-  const exam_part    = parts[3] ? parts[3].toUpperCase() : null;
-  return { year, exam_type, exam_session, exam_part };
+  const is_secondary_language = parts[parts.length - 1] === "matma";
+  const core = is_secondary_language ? parts.slice(0, -1) : parts;
+  // core[0] = year, core[1] = exam_type, core[2] = exam_session, core[3] = exam_part (optional)
+  const year         = parseInt(core[0]);
+  const exam_type    = core[1] as "kozep" | "emelt";
+  const exam_session = core[2];
+  const exam_part    = core[3] ? core[3].toUpperCase() : null;
+  return { year, exam_type, exam_session, exam_part, is_secondary_language };
 }
 
 async function getProblems(slug: string): Promise<{ problems: Problem[]; dbError?: boolean }> {
-  const { year, exam_type, exam_session, exam_part } = parseSlug(slug);
+  const { year, exam_type, exam_session, exam_part, is_secondary_language } = parseSlug(slug);
 
   try {
     const result = exam_part
@@ -28,17 +30,17 @@ async function getProblems(slug: string): Promise<{ problems: Problem[]; dbError
           `SELECT id, year, exam_type, exam_session, exam_part, problem_number, sub_part,
                   problem_image_url, max_points, topic_tags, ocr_used
            FROM problems WHERE human_reviewed = true AND year = $1 AND exam_type = $2
-             AND exam_session = $3 AND exam_part = $4
+             AND exam_session = $3 AND exam_part = $4 AND is_secondary_language = $5
            ORDER BY problem_number, sub_part NULLS LAST`,
-          [year, exam_type, exam_session, exam_part]
+          [year, exam_type, exam_session, exam_part, is_secondary_language]
         )
       : await db.query(
           `SELECT id, year, exam_type, exam_session, exam_part, problem_number, sub_part,
                   problem_image_url, max_points, topic_tags, ocr_used
            FROM problems WHERE human_reviewed = true AND year = $1 AND exam_type = $2
-             AND exam_session = $3 AND exam_part IS NULL
+             AND exam_session = $3 AND exam_part IS NULL AND is_secondary_language = $4
            ORDER BY problem_number, sub_part NULLS LAST`,
-          [year, exam_type, exam_session]
+          [year, exam_type, exam_session, is_secondary_language]
         );
     return { problems: result.rows as Problem[] };
   } catch (err) {
@@ -55,14 +57,15 @@ export default async function FeladatsorDetailPage({
   searchParams: { nezet?: string };
 }) {
   const { slug } = params;
-  const { year, exam_type, exam_session, exam_part } = parseSlug(slug);
+  const { year, exam_type, exam_session, exam_part, is_secondary_language } = parseSlug(slug);
   const { problems, dbError } = await getProblems(slug);
   const view = searchParams.nezet === "list" ? "list" : "grid";
 
   const sessionLabel = SESSION_LABELS[exam_session] ?? exam_session;
   const typeLabel    = exam_type === "kozep" ? "Középszint" : "Emelt szint";
   const partLabel    = exam_part ? ` · ${exam_part}. rész` : "";
-  const title        = `${year} ${sessionLabel} · ${typeLabel}${partLabel}`;
+  const matmaLabel   = is_secondary_language ? " · Kisebbségi változat" : "";
+  const title        = `${year} ${sessionLabel} · ${typeLabel}${partLabel}${matmaLabel}`;
 
   const isEmelt = exam_type === "emelt";
 

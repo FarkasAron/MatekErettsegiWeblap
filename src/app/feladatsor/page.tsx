@@ -10,23 +10,25 @@ interface ExamGroup {
   exam_type: "kozep" | "emelt";
   exam_session: string;
   exam_part: string | null;
+  is_secondary_language: boolean;
   count: number;
 }
 
 function toSlug(g: ExamGroup): string {
   const base = `${g.year}-${g.exam_type}-${g.exam_session}`;
-  return g.exam_part ? `${base}-${g.exam_part.toLowerCase()}` : base;
+  const withPart = g.exam_part ? `${base}-${g.exam_part.toLowerCase()}` : base;
+  return g.is_secondary_language ? `${withPart}-matma` : withPart;
 }
 
 async function getExamGroups(): Promise<{ groups: ExamGroup[]; dbError?: boolean }> {
   try {
     const result = await db.query(
-      "SELECT year, exam_type, exam_session, exam_part FROM problems WHERE human_reviewed = true ORDER BY year DESC, exam_session, exam_type LIMIT 2000"
+      "SELECT year, exam_type, exam_session, exam_part, is_secondary_language FROM problems WHERE human_reviewed = true ORDER BY year DESC, exam_session, exam_type LIMIT 2000"
     );
 
     const map = new Map<string, ExamGroup>();
     for (const row of result.rows) {
-      const key = `${row.year}-${row.exam_type}-${row.exam_session}-${row.exam_part ?? ""}`;
+      const key = `${row.year}-${row.exam_type}-${row.exam_session}-${row.exam_part ?? ""}-${row.is_secondary_language}`;
       if (map.has(key)) {
         map.get(key)!.count++;
       } else {
@@ -35,6 +37,7 @@ async function getExamGroups(): Promise<{ groups: ExamGroup[]; dbError?: boolean
           exam_type: row.exam_type,
           exam_session: row.exam_session,
           exam_part: row.exam_part,
+          is_secondary_language: row.is_secondary_language,
           count: 1,
         });
       }
@@ -105,6 +108,7 @@ export default async function FeladatsorPage() {
                 const partLabel    = g.exam_part ? ` · ${g.exam_part}. rész` : "";
                 const slug         = toSlug(g);
                 const isEmelt      = g.exam_type === "emelt";
+                const isMatma      = g.is_secondary_language;
 
                 return (
                   <Link
@@ -121,10 +125,15 @@ export default async function FeladatsorPage() {
                       <div className="font-semibold text-slate-800 dark:text-slate-100 leading-snug">
                         {sessionLabel}{partLabel}
                       </div>
-                      <div className="flex items-center gap-2 mt-1.5">
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         <span className={`badge text-white text-[10px] ${isEmelt ? "bg-crimson-600" : "bg-navy-600"}`}>
                           {typeLabel}
                         </span>
+                        {isMatma && (
+                          <span className="badge text-white text-[10px] bg-amber-600">
+                            Kisebbségi
+                          </span>
+                        )}
                         <span className="text-xs text-slate-400 dark:text-slate-500">{g.count} feladat</span>
                       </div>
                     </div>
