@@ -6,6 +6,16 @@ const nextConfig = {
     remotePatterns: [],
   },
 
+  async rewrites() {
+    if (!isDev) return [];
+    return [
+      {
+        source: "/images/:path*",
+        destination: "http://192.168.0.52/images/:path*",
+      },
+    ];
+  },
+
   async headers() {
     const csp = [
       "default-src 'self'",

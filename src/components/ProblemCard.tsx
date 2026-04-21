@@ -159,9 +159,10 @@ export default function ProblemCard({ problem }: { problem: Problem }) {
       {/* ── Problem lightbox ─────────────────────────────────────────── */}
       {open && (
         <div
-          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-fade-in"
+          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm overflow-y-auto animate-fade-in"
           onClick={() => setOpen(false)}
         >
+          <div className="min-h-full flex items-center justify-center p-4 sm:p-8">
           <div
             className="relative w-full max-w-4xl animate-fade-up"
             onClick={(e) => e.stopPropagation()}
@@ -200,15 +201,17 @@ export default function ProblemCard({ problem }: { problem: Problem }) {
               Kattints bárhova vagy nyomj Esc-et a bezáráshoz
             </p>
           </div>
+          </div>
         </div>
       )}
 
       {/* ── Answer lightbox ──────────────────────────────────────────── */}
       {answerOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-fade-in"
+          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm overflow-y-auto animate-fade-in"
           onClick={() => setAnswerOpen(false)}
         >
+          <div className="min-h-full flex items-center justify-center p-4 sm:p-8">
           <div
             className="relative w-full max-w-4xl animate-fade-up"
             onClick={(e) => e.stopPropagation()}
@@ -241,6 +244,7 @@ export default function ProblemCard({ problem }: { problem: Problem }) {
             <p className="mt-1 text-center text-white/50 text-xs">
               Kattints bárhova vagy nyomj Esc-et a bezáráshoz
             </p>
+          </div>
           </div>
         </div>
       )}

@@ -6,7 +6,7 @@ const SESSION_SHORT: Record<string, string> = {
   februar: "febr",
 };
 
-const IMAGE_BASE = process.env.NEXT_PUBLIC_IMAGE_BASE_URL ?? "http://192.168.0.52/images";
+const IMAGE_BASE = "/images";
 
 export function getAnswerImageUrl(problem: Problem): string | null {
   const typePrefix   = problem.exam_type === "kozep" ? "k" : "e";
