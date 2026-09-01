@@ -115,7 +115,7 @@ async function getProblems(filters: Props["searchParams"]): Promise<{ problems: 
     const [dataResult, countResult] = await Promise.all([
       db.query(
         `SELECT id, year, exam_type, exam_session, exam_part, problem_number, sub_part,
-                problem_image_url, max_points, topic_tags, ocr_used
+                problem_image_url, max_points, topic_tags, ocr_used, is_secondary_language
          FROM problems WHERE ${where} ORDER BY ${orderBy}
          LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
         dataParams

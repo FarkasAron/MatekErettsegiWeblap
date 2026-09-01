@@ -28,7 +28,7 @@ async function getProblems(slug: string): Promise<{ problems: Problem[]; dbError
     const result = exam_part
       ? await db.query(
           `SELECT id, year, exam_type, exam_session, exam_part, problem_number, sub_part,
-                  problem_image_url, max_points, topic_tags, ocr_used
+                  problem_image_url, max_points, topic_tags, ocr_used, is_secondary_language
            FROM problems WHERE human_reviewed = true AND year = $1 AND exam_type = $2
              AND exam_session = $3 AND exam_part = $4 AND is_secondary_language = $5
            ORDER BY problem_number, sub_part NULLS LAST`,
@@ -36,7 +36,7 @@ async function getProblems(slug: string): Promise<{ problems: Problem[]; dbError
         )
       : await db.query(
           `SELECT id, year, exam_type, exam_session, exam_part, problem_number, sub_part,
-                  problem_image_url, max_points, topic_tags, ocr_used
+                  problem_image_url, max_points, topic_tags, ocr_used, is_secondary_language
            FROM problems WHERE human_reviewed = true AND year = $1 AND exam_type = $2
              AND exam_session = $3 AND exam_part IS NULL AND is_secondary_language = $4
            ORDER BY problem_number, sub_part NULLS LAST`,
