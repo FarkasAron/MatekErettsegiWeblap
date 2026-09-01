@@ -795,10 +795,25 @@ Deferred: per-sub-part point scoring — see `FUTURE_IMPROVEMENTS.md`.
 **Phase 7 — Review, docs, release**
 - Goal: senior-review pass and ship v1.4.0.
 - Tasks: grid column count for taller cards; collapsible a11y
-  (`aria-expanded`); dead-code sweep; `Problem` type consistency; print-CSS
-  check. Update this section's status; final `PROGRESS.md` entry; version bump
-  to v1.4.0 (conventional commit + annotated tag + push, on explicit approval).
+  (`aria-expanded`); dead-code sweep (`ProblemCard` removal); `Problem` type
+  consistency; print-CSS check. Update this section's status; final
+  `PROGRESS.md` entry; version bump to v1.4.0 (conventional commit + annotated
+  tag + push, on explicit approval).
 - Deliverable: reviewed, documented, tagged release.
+
+**Phase 8 — Whole-set print → images-only PDF**
+- Goal: printing an entire exam paper / result set produces a clean PDF of just
+  the problem images, not a `window.print()` of the styled web page (which
+  carries navigation, filter chrome and buffer text nobody wants on paper).
+- Context: `PrintCartWidget` already concatenates problem images into a PDF via
+  jsPDF. This phase reuses that path for the page-level "Nyomtatás" button.
+- Tasks: replace the `PrintButton` (`window.print()`) on `/feladatsor/[slug]`
+  (and `/feladatok`) with an action that feeds every problem in the current view
+  into the jsPDF image-concatenation flow and returns one PDF — images only, in
+  order. Decide whether the whole-page browser print is dropped entirely (the
+  user's lean: it is never needed).
+- Depends on Phase 5 (cart at problem granularity).
+- Deliverable: "print whole set" yields an images-only PDF. Manual test plan.
 
 ### 8.6 Data assumption to verify before Phase 3
 

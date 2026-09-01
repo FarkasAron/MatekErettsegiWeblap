@@ -199,3 +199,75 @@ Entry template:
 ### Also in this change set
 - `FUTURE_IMPROVEMENTS.md` — added a "Known bugs" section with the lightbox-zoom
   bug.
+
+---
+
+## 2026-09-02 — Phase 3: grouped query + pagination on /feladatok
+
+**Phase:** PROJECT_PLAN §8.5 Phase 3 — `/feladatok` grouped query + pagination
+**Branch:** `feature/problem-grouping`
+**Commit:** pending
+
+### What changed
+- **`src/app/feladatok/page.tsx` — `getProblems` rewritten**:
+  - Filters split by level. `szint` / `ev` / `tipus` (problem-number range) stay
+    in `WHERE` (every sub-part of a problem shares them). `tema` and `q` move to
+    `HAVING bool_or(...)` so a problem matches if *any* sub-part matches, and the
+    non-matching sub-parts stay in the group (decision §8.4 #2).
+  - Single CTE (`page_groups`): `GROUP BY` the six key columns,
+    `ROW_NUMBER() OVER (ORDER BY <sort>)` as `ord`, `LIMIT 50 OFFSET n`. Outer
+    query joins every sub-part row of those groups back on the key and orders by
+    `ord, sub_part`. `groupProblems` on the result restores the sorted groups.
+  - `ORDER BY` adapted for the grouped context: `max_points` → `MAX(max_points)`,
+    `sub_part` dropped.
+  - Count query = `COUNT(*)` over the grouped/HAVING subquery → number of
+    **problems**, not sub-part rows.
+  - Return shape: `{ groups: ProblemGroup[]; total; dbError? }`.
+- **Render**: grid → `ProblemGroupCard` per group, with
+  `defaultExpandedTag={filters.tema}` so an active topic filter auto-expands the
+  matching sub-part rows. List view → `ProblemList` fed
+  `groups.flatMap(g => g.subParts)` (unchanged output; real conversion is
+  Phase 4). Empty-state check on `groups.length`.
+- Removed the now-unused `ProblemCard` import from this page (component still
+  used elsewhere until Phase 4; deleted in Phase 7).
+
+### Why
+- `/feladatok` is the filtered, paginated browse — the one page where grouping
+  has to happen in SQL, not just in JS, so a page is 50 problems and the count
+  is honest. The CTE keeps it to two queries with the sort order preserved
+  across the group→row join.
+
+### Files touched
+- `src/app/feladatok/page.tsx` — `getProblems` rewrite; grouped render.
+- `PROJECT_PLAN.md` — added Phase 8 (whole-set print → images-only PDF), from a
+  user request.
+- `FUTURE_IMPROVEMENTS.md` — logged the `TOPIC_LABELS` ↔ DB tag mismatch.
+
+### Verification (automated, via `npm run dev` probes vs. DB-computed truth)
+- `npm test` 14/14; `npm run build` clean.
+- No filter: header **1453 feladat**, 50 cards, pager **1 / 30**. Page 30 → 3
+  cards (1453 = 29·50 + 3). Page 31 → empty-state, no crash.
+- `?tema=trigonometria` → **173** (DB: 173), `?tema=geometria-sik` → **254**
+  (DB: 254); matching sub-part rows render with `aria-expanded="true"`
+  (auto-expand works).
+- `?szint=emelt&ev=2025` → **27** (DB: 27); `+&tipus=rovid` → **12**.
+- Sort: default first card year 2025, `rend=ev-asc` → 2005, `rend=pont-desc` →
+  first cards all 17 pt (DB max is 17).
+- `?nezet=list` still renders the flat per-sub-part list; `+filters` narrow it
+  (header 27 for emelt+2025).
+- No server errors.
+- **Manual walk-through by the user — PASSED.** Pagination, filters, topic
+  filter + auto-expand, sort, grid/list toggle, print / solution / dark mode /
+  responsive all fine.
+
+### Notes surfaced (out of scope, pre-existing)
+- `?tema=algebra` does nothing — `algebra` is a real DB tag but not a key in
+  `TOPIC_LABELS`, so `sanitizeFilters` drops it. Several DB tags are unmapped.
+- Some problems show a `b)` part in the image but have no `b` sub-part row
+  (~76 lone-`a` groups, more with gaps; matma variants worst). Segmentation
+  data-quality issue, not a grouping bug — the list faithfully shows the DB.
+- Both logged in `FUTURE_IMPROVEMENTS.md`.
+
+### Also
+- `util._extend` DEP0060 deprecation warning during `npm run dev` — emitted by a
+  Next.js dev-server dependency, not project code; harmless, no action.

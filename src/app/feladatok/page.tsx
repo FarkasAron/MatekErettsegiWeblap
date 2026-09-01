@@ -1,6 +1,7 @@
 import { TOPIC_LABELS, type Problem } from "@/lib/supabase";
+import { groupProblems, type ProblemGroup } from "@/lib/problems";
 import db from "@/lib/db";
-import ProblemCard from "@/components/ProblemCard";
+import ProblemGroupCard from "@/components/ProblemGroupCard";
 import ProblemList from "@/components/ProblemList";
 import FilterBar from "@/components/FilterBar";
 import ViewToggle from "@/components/ViewToggle";
@@ -59,79 +60,129 @@ function buildPageUrl(filters: Props["searchParams"], page: number): string {
   return `/feladatok${qs ? `?${qs}` : ""}`;
 }
 
-async function getProblems(filters: Props["searchParams"]): Promise<{ problems: Problem[]; total: number; dbError?: boolean }> {
+async function getProblems(
+  filters: Props["searchParams"],
+): Promise<{ groups: ProblemGroup[]; total: number; dbError?: boolean }> {
   const page   = Math.max(1, parseInt(filters.oldal ?? "1"));
   const offset = (page - 1) * PAGE_SIZE;
 
-  const conditions: string[] = ["human_reviewed = true"];
-  const params: unknown[]    = [];
+  // Row-level filters — every sub-part of a problem shares these values, so they
+  // belong in WHERE (before grouping).
+  const whereConds: string[] = ["human_reviewed = true"];
+  // Group-level filters — a problem is a match if ANY of its sub-parts matches
+  // (decision §8.4 #2). These must run after GROUP BY, in HAVING, otherwise they
+  // would drop the non-matching sub-parts from the group.
+  const havingConds: string[] = [];
+  const params: unknown[] = [];
 
   if (filters.szint) {
     params.push(filters.szint);
-    conditions.push(`exam_type = $${params.length}`);
-  }
-  if (filters.tema) {
-    params.push(filters.tema);
-    conditions.push(`$${params.length} = ANY(topic_tags)`);
+    whereConds.push(`exam_type = $${params.length}`);
   }
   if (filters.ev) {
     params.push(parseInt(filters.ev));
-    conditions.push(`year = $${params.length}`);
-  }
-  if (filters.q) {
-    params.push(`%${filters.q}%`);
-    conditions.push(`statement_text ILIKE $${params.length}`);
+    whereConds.push(`year = $${params.length}`);
   }
   if (filters.tipus === "rovid") {
     if (filters.szint === "kozep") {
-      conditions.push("problem_number <= 12");
+      whereConds.push("problem_number <= 12");
     } else if (filters.szint === "emelt") {
-      conditions.push("problem_number <= 4");
+      whereConds.push("problem_number <= 4");
     } else {
-      conditions.push("((exam_type = 'kozep' AND problem_number <= 12) OR (exam_type = 'emelt' AND problem_number <= 4))");
+      whereConds.push("((exam_type = 'kozep' AND problem_number <= 12) OR (exam_type = 'emelt' AND problem_number <= 4))");
     }
   }
   if (filters.tipus === "hosszu") {
     if (filters.szint === "kozep") {
-      conditions.push("problem_number >= 13");
+      whereConds.push("problem_number >= 13");
     } else if (filters.szint === "emelt") {
-      conditions.push("problem_number >= 5");
+      whereConds.push("problem_number >= 5");
     } else {
-      conditions.push("((exam_type = 'kozep' AND problem_number >= 13) OR (exam_type = 'emelt' AND problem_number >= 5))");
+      whereConds.push("((exam_type = 'kozep' AND problem_number >= 13) OR (exam_type = 'emelt' AND problem_number >= 5))");
     }
   }
+  if (filters.tema) {
+    params.push(filters.tema);
+    havingConds.push(`bool_or($${params.length} = ANY(topic_tags))`);
+  }
+  if (filters.q) {
+    params.push(`%${filters.q}%`);
+    havingConds.push(`bool_or(statement_text ILIKE $${params.length})`);
+  }
 
-  const where = conditions.join(" AND ");
+  const where      = whereConds.join(" AND ");
+  const having      = havingConds.length ? `HAVING ${havingConds.join(" AND ")}` : "";
+  const GROUP_COLS = "year, exam_type, exam_session, exam_part, is_secondary_language, problem_number";
 
   const rend = filters.rend;
+  // Evaluated over the grouped rows: max_points → MAX(max_points), and sub_part
+  // (no longer meaningful at the problem level) drops out.
   const orderBy =
-    rend === "pont-desc" ? "max_points DESC NULLS LAST, year DESC, problem_number ASC" :
-    rend === "pont-asc"  ? "max_points ASC NULLS LAST, year DESC, problem_number ASC"  :
-    rend === "ev-asc"    ? "year ASC, exam_session ASC, problem_number ASC, sub_part ASC NULLS LAST" :
-                           "year DESC, exam_session ASC, problem_number ASC, sub_part ASC NULLS LAST";
+    rend === "pont-desc" ? "MAX(max_points) DESC NULLS LAST, year DESC, problem_number ASC" :
+    rend === "pont-asc"  ? "MAX(max_points) ASC NULLS LAST, year DESC, problem_number ASC"  :
+    rend === "ev-asc"    ? "year ASC, exam_session ASC, problem_number ASC" :
+                           "year DESC, exam_session ASC, problem_number ASC";
+
+  const limitParam  = params.length + 1;
+  const offsetParam = params.length + 2;
+
+  // One page of problem groups, then every sub-part row of those groups. The
+  // window ordinal `ord` carries the group order through the join so the app
+  // side (groupProblems) reassembles them in the requested sort order.
+  const dataSql = `
+    WITH page_groups AS (
+      SELECT ${GROUP_COLS},
+             ROW_NUMBER() OVER (ORDER BY ${orderBy}) AS ord
+      FROM problems
+      WHERE ${where}
+      GROUP BY ${GROUP_COLS}
+      ${having}
+      ORDER BY ord
+      LIMIT $${limitParam} OFFSET $${offsetParam}
+    )
+    SELECT p.id, p.year, p.exam_type, p.exam_session, p.exam_part, p.problem_number,
+           p.sub_part, p.problem_image_url, p.max_points, p.topic_tags, p.ocr_used,
+           p.is_secondary_language
+    FROM problems p
+    JOIN page_groups g
+      ON  p.year                  = g.year
+      AND p.exam_type             = g.exam_type
+      AND p.exam_session          = g.exam_session
+      AND p.exam_part             IS NOT DISTINCT FROM g.exam_part
+      AND p.is_secondary_language = g.is_secondary_language
+      AND p.problem_number        = g.problem_number
+    WHERE p.human_reviewed = true
+    ORDER BY g.ord, p.sub_part ASC NULLS FIRST
+  `;
+
+  const countSql = `
+    SELECT COUNT(*)::int AS count FROM (
+      SELECT 1
+      FROM problems
+      WHERE ${where}
+      GROUP BY ${GROUP_COLS}
+      ${having}
+    ) t
+  `;
 
   try {
-    const dataParams = [...params, PAGE_SIZE, offset];
     const [dataResult, countResult] = await Promise.all([
-      db.query(
-        `SELECT id, year, exam_type, exam_session, exam_part, problem_number, sub_part,
-                problem_image_url, max_points, topic_tags, ocr_used, is_secondary_language
-         FROM problems WHERE ${where} ORDER BY ${orderBy}
-         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-        dataParams
-      ),
-      db.query(`SELECT COUNT(*) FROM problems WHERE ${where}`, params),
+      db.query(dataSql, [...params, PAGE_SIZE, offset]),
+      db.query(countSql, params),
     ]);
-    return { problems: dataResult.rows as Problem[], total: parseInt(countResult.rows[0].count) };
+    return {
+      groups: groupProblems(dataResult.rows as Problem[]),
+      total: countResult.rows[0].count,
+    };
   } catch (err) {
     console.error("[feladatok] Failed to fetch problems:", err);
-    return { problems: [], total: 0, dbError: true };
+    return { groups: [], total: 0, dbError: true };
   }
 }
 
 export default async function FeladatokPage({ searchParams }: Props) {
   const filters    = sanitizeFilters(searchParams);
-  const { problems, total, dbError } = await getProblems(filters);
+  const { groups, total, dbError } = await getProblems(filters);
   const page       = Math.max(1, parseInt(filters.oldal ?? "1"));
   const view       = filters.nezet === "list" ? "list" : "grid";
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -186,17 +237,17 @@ export default async function FeladatokPage({ searchParams }: Props) {
           <p className="text-lg font-medium text-red-600 dark:text-red-400">Hiba történt az adatok betöltésekor.</p>
           <p className="text-sm mt-2">Kérjük, töltsd újra az oldalt, vagy próbáld meg később.</p>
         </div>
-      ) : problems.length === 0 ? (
+      ) : groups.length === 0 ? (
         <div className="text-center py-16 text-slate-500 dark:text-slate-400">
           <p className="text-lg">Nincs találat ezekkel a szűrőkkel.</p>
           <p className="text-sm mt-2">Próbálj kevesebb szűrőt alkalmazni.</p>
         </div>
       ) : view === "list" ? (
-        <ProblemList problems={problems} />
+        <ProblemList problems={groups.flatMap((g) => g.subParts)} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {problems.map((p) => (
-            <ProblemCard key={p.id} problem={p} />
+          {groups.map((g) => (
+            <ProblemGroupCard key={g.key} group={g} defaultExpandedTag={filters.tema} />
           ))}
         </div>
       )}
