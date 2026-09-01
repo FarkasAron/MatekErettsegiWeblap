@@ -23,10 +23,32 @@ Entry template:
 
 ---
 
+## Current status
+
+**Refactor:** PROJECT_PLAN §8 — Problem-Level Grouping. **Branch:**
+`feature/problem-grouping` (not pushed; `main` at `v1.3.1`).
+
+| Phase | State |
+|---|---|
+| 1 — grouping core | ✅ done, committed `32eda3d`, manual test n/a |
+| 2 — `/feladatsor/[slug]` grouped cards | ✅ done, committed `265beb9`, user-tested |
+| 3 — `/feladatok` grouped query + pagination | ✅ done, committed `ec724d0`, user-tested |
+| **4 — list view (`ProblemList`) grouped** | **NEXT** |
+| 5 — print cart → group keys | pending |
+| 6 — random endpoint + homepage stat | pending |
+| 7 — review, delete `ProblemCard`, `.gitattributes`, `v1.4.0` | pending |
+| 8 — whole-set print → images-only PDF | pending |
+
+To resume: read this file top-to-bottom plus `PROJECT_PLAN.md` §8, then start
+the phase marked NEXT. Working rules (dev-server cleanup, env, testing) are in
+the session memory `dev-workflow-lessons`.
+
+---
+
 ## 2026-09-01 — Repo relocation, docs scaffolding, grouping refactor planned
 
 **Phase:** n/a (setup)
-**Commit:** pending
+**Commit:** `7e1457e`
 
 ### What changed
 - Repository moved off OneDrive to `E:\Programming\MatekErettsegiWeblap`. The old
@@ -74,7 +96,7 @@ Entry template:
 
 **Phase:** PROJECT_PLAN §8.5 Phase 1 — Grouping core
 **Branch:** `feature/problem-grouping`
-**Commit:** pending
+**Commit:** `32eda3d`
 
 ### What changed
 - **`src/lib/problems.ts` (new)** — the consolidation layer:
@@ -141,7 +163,7 @@ Entry template:
 
 **Phase:** PROJECT_PLAN §8.5 Phase 2 — `/feladatsor/[slug]`
 **Branch:** `feature/problem-grouping`
-**Commit:** pending
+**Commit:** `265beb9`
 
 ### What changed
 - **`src/components/SubPartList.tsx` (new)** — the sub-part breakdown shown
@@ -206,7 +228,7 @@ Entry template:
 
 **Phase:** PROJECT_PLAN §8.5 Phase 3 — `/feladatok` grouped query + pagination
 **Branch:** `feature/problem-grouping`
-**Commit:** pending
+**Commit:** `ec724d0`
 
 ### What changed
 - **`src/app/feladatok/page.tsx` — `getProblems` rewritten**:
