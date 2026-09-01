@@ -1,8 +1,10 @@
 # Érettségi Matematika Feladatbank — Project Plan
 
-> **Status:** Pre-coding architectural plan. Decisions confirmed. Ready to build.
+> **Status:** Sections 1–7 are the original pre-coding plan (historical — parts
+> are now superseded by the self-hosted stack; see `MIGRATION_GUIDE.md`).
+> **Section 8 is the active work item.**
 > **Audience:** Developer reference + teacher stakeholder.
-> **Last updated:** 2026-03-28
+> **Last updated:** 2026-09-01
 
 ---
 
@@ -694,6 +696,115 @@ Each a)/b)/c) sub-part is a separate database row with `sub_part = 'a'/'b'/'c'`.
 ### Decision 5 — LaTeX delimiters ✅ CONFIRMED: `$...$` inline, `$$...$$` display
 
 Used only for any manually-entered LaTeX in plain-text spans (e.g. variable names, units). Formula images remain the primary display mechanism. The `$...$` convention is standard, supported natively by KaTeX, and the only option that requires no custom parser.
+
+---
+
+## 8. Refactor — Problem-Level Grouping (Sub-part Consolidation)
+
+> **Added:** 2026-09-01 · **Status:** Planned; phased implementation in progress.
+> **Version target:** v1.4.0 (backwards-compatible feature).
+> **Per-change detail:** see `PROGRESS.md`.
+
+### 8.1 Problem statement
+
+The database stores one row per sub-part (`problem_number` + `sub_part`) because
+topic categorisation is done at sub-part granularity. But every sub-part of a
+given problem shares the **same** whole-problem crop image and the same
+`max_points`. The current UI renders one card per row, so a problem with parts
+a/b/c shows the identical image three times — visual redundancy.
+
+### 8.2 Goal
+
+Render **one card per problem** (one image), with the sub-parts listed beneath it
+as a collapsible list carrying the per-sub-part topic tags. The database and the
+sub-part granularity are unchanged — this is a presentation-layer change only.
+
+**Hard constraint:** no existing functionality may regress — solution lightbox,
+print cart, jsPDF export, zoom, filters, pagination, sort, list/grid views, dark
+mode, print CSS, and the "matma" variant all stay working.
+
+### 8.3 Grouping key
+
+`year · exam_type · exam_session · exam_part · is_secondary_language · problem_number`
+
+`is_secondary_language` is **mandatory** in the key — otherwise a regular problem
+and its "matma" twin would merge into one card.
+
+### 8.4 Confirmed decisions
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Expanded sub-part row content | Topic-tag chips only. No OCR flag, no text. |
+| 2 | Topic filter / search behaviour | The whole problem card shows if **any** sub-part matches; all sub-parts stay listed; matching sub-part rows are expanded by default. Every matching card still appears. |
+| 3 | `/feladatok` pagination unit | 50 **problems** per page (not 50 rows). |
+| 4 | Homepage "Feladat" stat | Switch to the distinct **problem** count (no fudging the number), assuming the query change is small. |
+| 5 | `/statisztika` counts | Keep **row-based** (sub-part level) — deliberately. It measures categorisation distribution. |
+| 6 | Card-head topic chips | None. Users wanting a topic use the filter. |
+| 7 | List-view collapsed row | Problem title only. Same collapsibility as the grid: expand the problem → sub-parts listed, each sub-part with its tags shown to the right (list view has more horizontal room). |
+| 8 | Sort | `max_points` per group via `MAX()`; `sub_part` drops out of `ORDER BY`. Point-sort behaviour unchanged. |
+| 9 | Print-cart identity | Cart item id becomes the group key; `localStorage` key bumped to `-v2` (old row-id carts are dropped — the cart is ephemeral). |
+
+Deferred: per-sub-part point scoring — see `FUTURE_IMPROVEMENTS.md`.
+
+### 8.5 Phases
+
+**Phase 1 — Grouping core (no visible change)**
+- Goal: a tested grouping layer.
+- Tasks: `src/lib/problems.ts` with a `ProblemGroup` type, `groupKey()`, and
+  `groupProblems(rows): ProblemGroup[]` (representative image = first non-null;
+  representative points = `MAX`; sub-parts ordered `a < b < c`, `NULL` first;
+  tag union computed for filter logic). Add `is_secondary_language` to the
+  `Problem` type and to every card-feeding `SELECT`. Unit tests.
+- Deliverable: grouping util + green tests. No UI change.
+
+**Phase 2 — `/feladatsor/[slug]`**
+- Goal: the simplest consumer switched to grouped rendering.
+- Tasks: group in JS after fetch; build `ProblemCard` v2 + `SubPartList` here;
+  one card per group; single-part problems render tags directly (no list).
+- Deliverable: exam-paper view shows one image per problem. Manual test plan.
+
+**Phase 3 — `/feladatok` grouped query + pagination**
+- Goal: filtered browse paginates by problem.
+- Tasks: rewrite `getProblems` with a CTE — first select the page's groups
+  (`GROUP BY` key cols, `ORDER BY`, `LIMIT 50 OFFSET n`), then join their
+  sub-part rows. Topic (`tema`) and text (`q`) filters move to group level via
+  `HAVING bool_or(...)`. Count = number of groups. Active `tema` → matching
+  sub-part rows expanded by default (`defaultExpandedTag` prop).
+- Deliverable: browse + filters + pagination working on problems. Manual test plan.
+
+**Phase 4 — List view (`ProblemList` v2)**
+- Goal: list view grouped, per decision #7.
+- Tasks: outer collapsible row = the problem (title + points only); expand →
+  single image + `SubPartList` with each sub-part's tags aligned right.
+- Deliverable: list-view parity. Manual test plan.
+
+**Phase 5 — Print cart → problem granularity**
+- Goal: cart and export operate per problem.
+- Tasks: `PrintItem.id` = group key; `STORAGE_KEY` → `-v2`; card/list
+  add/remove/isInCart use the group key + representative image; verify
+  `PrintCartWidget` jsPDF export is unaffected.
+- Deliverable: add problem → one image in cart → PDF export intact. Manual test plan.
+
+**Phase 6 — Random problem + homepage stat**
+- Goal: random and the headline count follow the problem unit.
+- Tasks: `/api/random-problem` returns a random distinct problem group;
+  `RandomProblemButton` consumes it; homepage "Feladat" stat → distinct problem
+  count (decision #4); `/statisztika` left row-based (decision #5).
+- Deliverable: random works on problems; homepage number honest. Manual test plan.
+
+**Phase 7 — Review, docs, release**
+- Goal: senior-review pass and ship v1.4.0.
+- Tasks: grid column count for taller cards; collapsible a11y
+  (`aria-expanded`); dead-code sweep; `Problem` type consistency; print-CSS
+  check. Update this section's status; final `PROGRESS.md` entry; version bump
+  to v1.4.0 (conventional commit + annotated tag + push, on explicit approval).
+- Deliverable: reviewed, documented, tagged release.
+
+### 8.6 Data assumption to verify before Phase 3
+
+All sub-parts of a given problem number must carry the **same**
+`problem_image_url`. Points are already confirmed uniform. If image URLs ever
+differ within a group, revisit the "representative image = first non-null" rule.
 
 ---
 
