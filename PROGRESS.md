@@ -134,3 +134,68 @@ Entry template:
 - `npm run lint` — skipped: `next lint` is not configured in this repo (no
   eslint config; it prompts interactively). `next build` still type-checks.
 - **No visible change on the site** — this phase is data-layer only.
+
+---
+
+## 2026-09-01 — Phase 2: grouped cards on /feladatsor/[slug]
+
+**Phase:** PROJECT_PLAN §8.5 Phase 2 — `/feladatsor/[slug]`
+**Branch:** `feature/problem-grouping`
+**Commit:** pending
+
+### What changed
+- **`src/components/SubPartList.tsx` (new)** — the sub-part breakdown shown
+  beneath a problem card. Single-part problems (one row, NULL `sub_part`) render
+  their topic-tag chips directly; multi-part problems render a collapsible list,
+  one row per sub-part (`a)` header + "N témakör", expands to the tag chips).
+  Chips link to `/feladatok?tema=<slug>`. `defaultExpandedTag` prop (unused this
+  phase) will let Phase 3 auto-expand rows matching an active topic filter.
+- **`src/components/ProblemGroupCard.tsx` (new)** — one card per `ProblemGroup`:
+  a single whole-problem image (lightbox, zoom, answer lightbox, print button —
+  all carried over from `ProblemCard` unchanged) plus `SubPartList` below it. No
+  topic chips on the card head (decision §8.4 #6). Adapted from `ProblemCard`.
+- **`src/lib/answers.ts`** — `getAnswerImageUrl` param widened from `Problem` to
+  `Pick<Problem, "exam_type" | "year" | "exam_session" | "problem_number">` so it
+  accepts a `ProblemGroup` too. Behaviour identical.
+- **`src/app/feladatsor/[slug]/page.tsx`** — grid view now groups the rows
+  (`groupProblems`) and renders `ProblemGroupCard` per group; the header count
+  is `groups.length` (problems) instead of `problems.length` (sub-part rows).
+  List view still renders the old `ProblemList` unchanged — that is Phase 4.
+
+### Why
+- First consumer of the grouping layer, and the simplest one: no pagination, no
+  filters. Removes the 3×-repeated image for multi-part problems here first,
+  keeping the `/feladatok` query rework (Phase 3) as a separate step.
+- New component rather than editing `ProblemCard` in place: `/feladatok` still
+  passes `Problem` rows to `ProblemCard`, so it must keep working until Phase 3.
+
+### Files touched
+- `src/components/SubPartList.tsx` — new.
+- `src/components/ProblemGroupCard.tsx` — new.
+- `src/lib/answers.ts` — widened param type.
+- `src/app/feladatsor/[slug]/page.tsx` — group + render `ProblemGroupCard`;
+  header count in problems.
+
+### Verification
+- `npm test` — 14/14 (grouping core unchanged).
+- `npm run build` — clean, 8/8 pages, types valid.
+- `npm run dev` probe of `/feladatsor/2025-emelt-majus-ii` (5 problems, 13
+  sub-part rows in the DB): the page renders **5 distinct `_prob_` images**
+  (was 13 before — one per sub-part), **13 collapsible sub-part rows**, no
+  DB-error banner, no server errors.
+- List view (`?nezet=list`) unchanged — deferred to Phase 4.
+- **Manual walk-through by the user — PASSED.** `/feladatsor` (emelt): 5 cards /
+  5 images with working a) b) rows. Cards expand correctly. Középszint: single
+  fully-standalone problems (no sub-part list), as intended. Image click / scroll
+  / Esc-close fine. Print menu opens. Solution lightbox fine. Dark mode fine and
+  readable.
+- Two items noted, both out of scope for this phase:
+  - List view does nothing useful yet — expected, that is Phase 4 (user flagged
+    it as required).
+  - Lightbox zoom indicator moves but the image does not visually scale —
+    **pre-existing** bug, unrelated to this change. Logged in
+    `FUTURE_IMPROVEMENTS.md` → "Known bugs".
+
+### Also in this change set
+- `FUTURE_IMPROVEMENTS.md` — added a "Known bugs" section with the lightbox-zoom
+  bug.

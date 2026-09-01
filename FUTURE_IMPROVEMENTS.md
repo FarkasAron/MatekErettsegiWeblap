@@ -37,3 +37,25 @@ self-study use.
 - Worksheet PDF: optional per-sub-part point column in the export layout.
 
 **Added:** 2026-09-01
+
+---
+
+# Known bugs
+
+## Lightbox zoom does not visually scale the image
+
+**What:** In the problem / answer lightbox (`ZoomableImage`), Ctrl+scroll (and
+the +/- buttons / pinch) update the zoom-percent indicator, but the image itself
+does not visibly grow — panning by scroll also has nothing larger to pan over.
+
+**Status:** Pre-existing — present before the §8 grouping refactor. Not caused by
+`ProblemGroupCard`; the same `ZoomableImage` component is used by the old
+`ProblemCard`.
+
+**Likely area:** `src/components/ZoomableImage.tsx` — the `scale` state updates
+(the indicator reads from it) but the image's `width: ${scale * 100}%` /
+container `overflow-auto` is not producing a visible size change. Possibly the
+`max-h-[70vh]` container + `height: auto` image interaction, or the flex/`max-w`
+wrapper clipping the scaled width.
+
+**Added:** 2026-09-01

@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { type Problem, SESSION_LABELS } from "@/lib/supabase";
+import { groupProblems } from "@/lib/problems";
 import db from "@/lib/db";
-import ProblemCard from "@/components/ProblemCard";
+import ProblemGroupCard from "@/components/ProblemGroupCard";
 import ProblemList from "@/components/ProblemList";
 import ViewToggle from "@/components/ViewToggle";
 import PrintButton from "@/components/PrintButton";
@@ -59,6 +60,7 @@ export default async function FeladatsorDetailPage({
   const { slug } = params;
   const { year, exam_type, exam_session, exam_part, is_secondary_language } = parseSlug(slug);
   const { problems, dbError } = await getProblems(slug);
+  const groups = groupProblems(problems);
   const view = searchParams.nezet === "list" ? "list" : "grid";
 
   const sessionLabel = SESSION_LABELS[exam_session] ?? exam_session;
@@ -94,7 +96,7 @@ export default async function FeladatsorDetailPage({
           <div>
             <div className="text-white/50 text-xs font-medium uppercase tracking-widest mb-2">{year}</div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white print:text-black">{title}</h1>
-            <p className="text-white/60 text-sm mt-2">{problems.length} feladat</p>
+            <p className="text-white/60 text-sm mt-2">{groups.length} feladat</p>
           </div>
           <div className="no-print flex items-center gap-2 mt-1">
             <Suspense>
@@ -118,8 +120,8 @@ export default async function FeladatsorDetailPage({
         <ProblemList problems={problems} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {problems.map((p) => (
-            <ProblemCard key={p.id} problem={p} />
+          {groups.map((g) => (
+            <ProblemGroupCard key={g.key} group={g} />
           ))}
         </div>
       )}
