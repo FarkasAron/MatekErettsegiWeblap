@@ -487,7 +487,7 @@ the session memory `dev-workflow-lessons`.
 
 **Phase:** n/a — UX polish, outside the §8 phase list (user-requested during Phase 5 testing)
 **Branch:** `feature/problem-grouping`
-**Commit:** `pending`
+**Commit:** `9437006`
 
 ### What changed
 - **`src/components/LightboxButton.tsx` (new)** — one shared button for the
@@ -535,7 +535,10 @@ the session memory `dev-workflow-lessons`.
 ### Verification
 - `npm test` — 14/14.
 - `npm run build` — `✓ Compiled successfully`, types valid, 8/8 pages.
-- Not yet exercised in the browser — see manual test plan below.
+- **Manual walk-through by the user — PASSED.** Dark lightbox buttons readable
+  over light images in both themes; in-lightbox Nyomtatás / Megoldás work and
+  stay in sync with the card footer / expanded row; random-problem modal and
+  `/feladatsor/<slug>` unaffected.
 
 ### Manual test plan (for the user)
 1. `/feladatok` (light mode), click a problem image → lightbox. Below the image:
