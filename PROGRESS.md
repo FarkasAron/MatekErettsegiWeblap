@@ -35,8 +35,8 @@ Entry template:
 | 3 — `/feladatok` grouped query + pagination | ✅ done, committed `ec724d0`, user-tested |
 | 4 — list view (`ProblemList`) grouped | ✅ done, committed `84d6ada`, user-tested |
 | 5 — print cart → group keys | ✅ done, committed `1669289`, user-tested |
-| **6 — random endpoint + homepage stat** | **NEXT** |
-| 7 — review, delete `ProblemCard`, `.gitattributes`, `v1.4.0` | pending |
+| 6 — random endpoint + homepage stat | ✅ done, user-tested (hash backfilled with Phase 7) |
+| **7 — review, delete `ProblemCard`, `.gitattributes`, `v1.4.0`** | **NEXT** |
 | 8 — whole-set print → images-only PDF | pending |
 
 To resume: read this file top-to-bottom plus `PROJECT_PLAN.md` §8, then start
@@ -556,3 +556,86 @@ the session memory `dev-workflow-lessons`.
    "Következő" still loads a new one, cart toggle still dedupes against browse.
 6. `/feladatsor/<slug>` grid + list — same lightbox action checks.
 7. Narrow viewport (~375px): the lightbox button row wraps, doesn't overflow.
+
+---
+
+## 2026-09-02 — Phase 6: random problem + homepage stat at problem granularity
+
+**Phase:** PROJECT_PLAN §8.5 Phase 6 — Random problem + homepage stat
+**Branch:** `feature/problem-grouping`
+**Commit:** `pending` (hash backfilled with the Phase 7 doc changes)
+
+### What changed
+- **`src/app/api/random-problem/route.ts` — rewritten to pick a distinct
+  problem, not a sub-part row.** Previously `COUNT(*)` + `ORDER BY id LIMIT 1
+  OFFSET random()` over rows, so a three-part problem was 3× more likely to come
+  up and consecutive "Következő" clicks could land on `a)` then `b)` of the same
+  problem (identical image). Now a single query: a `picked` CTE groups by the
+  six key columns, `ORDER BY random() LIMIT 1` → one uniformly-random problem;
+  the outer query joins back every `human_reviewed` sub-part row of that problem
+  (`exam_part IS NOT DISTINCT FROM` for the nullable column) ordered
+  `sub_part NULLS FIRST`. Response shape changed from one object (or `null`) to
+  a `Problem[]`; the error / empty case returns `[]`.
+- **`src/components/RandomProblemButton.tsx` — consumes the array as a
+  `ProblemGroup`.** State is `group: ProblemGroup | null`; `fetchRandom` does
+  `groupProblems(rows)[0]`. The modal now shows the whole-problem image, the
+  problem number with **no `/ a` sub-part suffix**, `group.max_points`, and the
+  **union** of the sub-parts' topic tags (`group.allTags`) instead of one row's
+  tags. Cart wiring simplified to `group.key` directly (Phase 5 had it on
+  `groupKey(problem)`); dedupe against browse cards/rows is unchanged.
+- **`src/app/page.tsx` — "Feladat" stat → distinct problem count (decision
+  §8.4 #4).** `SELECT COUNT(*) FROM problems WHERE human_reviewed` (rows) →
+  `COUNT(*)` over the same six-column `GROUP BY` the browse view paginates by,
+  so the headline equals the `/feladatok` no-filter header. `yearCount` /
+  `sessionCount` unchanged (already distinct-set derived).
+- **`/statisztika` — deliberately untouched** (decision §8.4 #5: it stays
+  row-based, it measures categorisation distribution).
+
+### Why
+- The random button and the homepage headline are the last two places still
+  counting/serving sub-part rows instead of problems. After this, "1453
+  feladat" means the same thing everywhere.
+
+### Files touched
+- `src/app/api/random-problem/route.ts` — grouped random query; array response.
+- `src/components/RandomProblemButton.tsx` — `ProblemGroup` state; union tags;
+  no sub-part label; `group.key` cart id.
+- `src/app/page.tsx` — grouped "Feladat" count.
+
+### Verification (local — automated, no dev server)
+- `npm test` — 14/14.
+- `npm run build` — `✓ Compiled successfully`, types valid, 8/8 pages.
+- **Direct DB check** (`node --env-file=.env.local` against `192.168.0.52`):
+  - Homepage count: old row count **2559** → new group count **1453** (exactly
+    matches Phase 3's `/feladatok` no-filter header).
+  - Random query run ×3: each returns the rows of **exactly one** group
+    (distinct key count = 1), `sub_part` ordered `NULL`/`a`/`b`/`c`, every row
+    with an image. One run landed a matma variant
+    (`is_secondary_language = true`, 3 parts) — correctly isolated by the key.
+- **Manual walk-through by the user — PASSED.** Homepage headline reads 1 453;
+  `/statisztika` unchanged; random dialog shows whole problems (no `/ a`, union
+  tags) and consecutive "Következő" never repeats a problem's sub-parts; random
+  cart add dedupes against the browse cards.
+
+### Manual test plan (for the user)
+1. **Homepage headline.** Load `/`. The **Feladat** stat now reads **1 453**
+   (not 2 559). The other three stats (Témakör / Évjárat / Feladatsor)
+   unchanged. `/feladatok` with no filter shows the same 1453 in its header.
+2. **`/statisztika` unchanged.** Its totals still reflect sub-part rows
+   (deliberate) — spot-check the number is still the larger, row-level one.
+3. **Random = whole problem.** `/feladatok` → **Véletlen**. The dialog shows one
+   image, the title has **no `/ a`** suffix, and for a multi-part problem the
+   topic-tag row is the union of all its sub-parts' tags. Click **Következő**
+   several times: you should never get two "sub-parts" of the same problem in a
+   row (they were near-identical before).
+4. **Random cart dedupe.** In the random dialog, **Nyomtatási lista** →
+   "Hozzáadva". Close it, find that problem in the browse list → its card
+   already shows "Hozzáadva", cart count did not double. Remove from the card →
+   next time the random dialog shows that same problem, the button is back to
+   "Nyomtatási lista".
+5. **Solution toggle** in the random dialog still flips image ⇄ answer and back;
+   absent when the problem has no answer key.
+6. **Empty/again:** rapid double-click **Véletlen** / **Következő** — no crash,
+   no stuck spinner (endpoint returns an array; empty array keeps the previous
+   problem shown).
+7. Dark mode + ~375px width: dialog readable, button row wraps.

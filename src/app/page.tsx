@@ -36,14 +36,22 @@ const FEATURED_TOPICS = [
 
 export default async function HomePage() {
   const [countResult, yearResult, sessionResult] = await Promise.all([
-    db.query("SELECT COUNT(*) FROM problems WHERE human_reviewed = true"),
+    // Distinct problems, not sub-part rows (decision §8.4 #4): count the groups
+    // the browse view paginates by, so the headline number matches /feladatok.
+    db.query(`
+      SELECT COUNT(*)::int AS count FROM (
+        SELECT 1 FROM problems
+        WHERE human_reviewed = true
+        GROUP BY year, exam_type, exam_session, exam_part, is_secondary_language, problem_number
+      ) t
+    `),
     db.query("SELECT year FROM problems WHERE human_reviewed = true"),
     db.query("SELECT exam_session, year, exam_type FROM problems WHERE human_reviewed = true"),
   ]);
 
   const yearCount    = new Set(yearResult.rows.map((r: { year: number }) => r.year)).size;
   const sessionCount = new Set(sessionResult.rows.map((r: { year: number; exam_type: string; exam_session: string }) => `${r.year}-${r.exam_type}-${r.exam_session}`)).size;
-  const total        = parseInt(countResult.rows[0].count) ?? 0;
+  const total        = countResult.rows[0].count ?? 0;
   const totalStr     = total >= 1000
     ? `${Math.floor(total / 1000)} ${String(total % 1000).padStart(3, "0")}`
     : String(total);

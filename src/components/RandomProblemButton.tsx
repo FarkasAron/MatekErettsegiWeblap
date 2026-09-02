@@ -3,26 +3,23 @@
 import { useState, useEffect } from "react";
 import { type Problem, TOPIC_LABELS, SESSION_LABELS } from "@/lib/supabase";
 import { getAnswerImageUrl } from "@/lib/answers";
-import { groupKey } from "@/lib/problems";
+import { groupProblems, type ProblemGroup } from "@/lib/problems";
 import { usePrintCart } from "@/lib/print-cart";
 import ZoomableImage from "@/components/ZoomableImage";
 import LightboxButton from "@/components/LightboxButton";
 
 export default function RandomProblemButton() {
-  const [loading,     setLoading]     = useState(false);
-  const [problem,     setProblem]     = useState<Problem | null>(null);
-  const [answerOpen,  setAnswerOpen]  = useState(false);
+  const [loading,      setLoading]      = useState(false);
+  const [group,        setGroup]        = useState<ProblemGroup | null>(null);
+  const [answerOpen,   setAnswerOpen]   = useState(false);
   const [answerMissing, setAnswerMissing] = useState(false);
 
   const { add, remove, isInCart } = usePrintCart();
 
-  const answerUrl   = problem ? getAnswerImageUrl(problem) : null;
+  const answerUrl = group ? getAnswerImageUrl(group) : null;
   // Cart identity is the problem-group key (§8.4 #9), so a problem added here
-  // dedupes against the same problem added from a browse card / list row. The
-  // random endpoint still returns a single sub-part row — grouping it to a
-  // distinct problem is Phase 6.
-  const cartId      = problem ? groupKey(problem) : "";
-  const inCart      = problem ? isInCart(cartId) : false;
+  // dedupes against the same problem added from a browse card / list row.
+  const inCart = group ? isInCart(group.key) : false;
 
   async function fetchRandom() {
     setLoading(true);
@@ -31,8 +28,12 @@ export default function RandomProblemButton() {
     try {
       const res = await fetch("/api/random-problem");
       if (!res.ok) throw new Error("fetch failed");
-      const data = await res.json();
-      if (data) setProblem(data as Problem);
+      // The endpoint returns every sub-part row of one randomly-chosen problem;
+      // fold them into the single group this dialog renders.
+      const rows = (await res.json()) as Problem[];
+      if (Array.isArray(rows) && rows.length > 0) {
+        setGroup(groupProblems(rows)[0] ?? null);
+      }
     } catch (err) {
       console.error("[random] fetch failed:", err);
     } finally {
@@ -42,31 +43,29 @@ export default function RandomProblemButton() {
 
   // Escape closes the modal
   useEffect(() => {
-    if (!problem) return;
+    if (!group) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setProblem(null); setAnswerOpen(false); }
+      if (e.key === "Escape") { setGroup(null); setAnswerOpen(false); }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [problem]);
+  }, [group]);
 
   // Lock body scroll while open
   useEffect(() => {
-    document.body.style.overflow = problem ? "hidden" : "";
+    document.body.style.overflow = group ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [problem]);
+  }, [group]);
 
   const handlePrintToggle = () => {
-    if (!problem?.problem_image_url) return;
-    if (inCart) { remove(cartId); return; }
-    const session  = SESSION_LABELS[problem.exam_session] ?? problem.exam_session;
-    const fullType = problem.exam_type === "kozep" ? "Középszint" : "Emelt szint";
-    // Whole-problem title (no sub-part label) to match ProblemGroupCard, since
-    // the cart entry represents the problem, not this one sub-part.
+    if (!group?.problem_image_url) return;
+    if (inCart) { remove(group.key); return; }
+    const session  = SESSION_LABELS[group.exam_session] ?? group.exam_session;
+    const fullType = group.exam_type === "kozep" ? "Középszint" : "Emelt szint";
     add({
-      id:              cartId,
-      title:           `${problem.year} ${session} · ${fullType} · ${problem.problem_number}. feladat`,
-      problemImageUrl: problem.problem_image_url!,
+      id:              group.key,
+      title:           `${group.year} ${session} · ${fullType} · ${group.problem_number}. feladat`,
+      problemImageUrl: group.problem_image_url,
       answerImageUrl:  answerUrl,
     });
   };
@@ -101,10 +100,10 @@ export default function RandomProblemButton() {
       </button>
 
       {/* ── Problem modal ───────────────────────────────────────────── */}
-      {problem && (
+      {group && (
         <div
           className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-fade-in"
-          onClick={() => { setProblem(null); setAnswerOpen(false); }}
+          onClick={() => { setGroup(null); setAnswerOpen(false); }}
         >
           <div
             className="relative w-full max-w-4xl animate-fade-up flex flex-col gap-3"
@@ -112,7 +111,7 @@ export default function RandomProblemButton() {
           >
             {/* Close */}
             <button
-              onClick={() => { setProblem(null); setAnswerOpen(false); }}
+              onClick={() => { setGroup(null); setAnswerOpen(false); }}
               className="absolute -top-11 right-0 text-white/80 hover:text-white transition-colors
                          w-9 h-9 rounded-full bg-black/60 ring-1 ring-white/20 hover:bg-black/80
                          backdrop-blur-sm flex items-center justify-center"
@@ -126,8 +125,8 @@ export default function RandomProblemButton() {
             {/* Image */}
             {!answerOpen ? (
               <ZoomableImage
-                src={problem.problem_image_url!}
-                alt={`${problem.year} véletlenszerű feladat`}
+                src={group.problem_image_url!}
+                alt={`${group.year} véletlenszerű feladat`}
               />
             ) : (
               <ZoomableImage
@@ -140,28 +139,28 @@ export default function RandomProblemButton() {
             {/* Metadata */}
             <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
               <span className="text-white/80 font-semibold">
-                {problem.year} {SESSION_LABELS[problem.exam_session] ?? problem.exam_session}
+                {group.year} {SESSION_LABELS[group.exam_session] ?? group.exam_session}
               </span>
               <span className="text-white/30">·</span>
-              <span className={`badge text-white ${problem.exam_type === "emelt" ? "bg-crimson-600" : "bg-navy-600"}`}>
-                {problem.exam_type === "kozep" ? "Középszint" : "Emelt szint"}
+              <span className={`badge text-white ${group.exam_type === "emelt" ? "bg-crimson-600" : "bg-navy-600"}`}>
+                {group.exam_type === "kozep" ? "Középszint" : "Emelt szint"}
               </span>
               <span className="text-white/30">·</span>
               <span className="text-white/80">
-                {problem.problem_number}. feladat{problem.sub_part ? ` / ${problem.sub_part}` : ""}
+                {group.problem_number}. feladat
               </span>
-              {problem.max_points && (
+              {group.max_points != null && (
                 <>
                   <span className="text-white/30">·</span>
-                  <span className="text-white/60">{problem.max_points} pont</span>
+                  <span className="text-white/60">{group.max_points} pont</span>
                 </>
               )}
             </div>
 
-            {/* Topic tags */}
-            {problem.topic_tags.length > 0 && (
+            {/* Topic tags — union across the problem's sub-parts */}
+            {group.allTags.length > 0 && (
               <div className="flex flex-wrap justify-center gap-1.5">
-                {problem.topic_tags.map(tag => (
+                {group.allTags.map(tag => (
                   <span key={tag} className="badge bg-white/10 text-white/70 border border-white/10">
                     {TOPIC_LABELS[tag] ?? tag}
                   </span>
