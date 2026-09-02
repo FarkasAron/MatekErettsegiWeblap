@@ -5,6 +5,7 @@ import Image from "next/image";
 import { SESSION_LABELS } from "@/lib/supabase";
 import type { ProblemGroup } from "@/lib/problems";
 import ZoomableImage from "@/components/ZoomableImage";
+import LightboxButton from "@/components/LightboxButton";
 import SubPartList from "@/components/SubPartList";
 import { getAnswerImageUrl } from "@/lib/answers";
 import { usePrintCart } from "@/lib/print-cart";
@@ -165,8 +166,9 @@ function ProblemGroupRow({ group }: { group: ProblemGroup }) {
             <div className="relative w-full max-w-4xl animate-fade-up" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={() => setLightboxOpen(false)}
-                className="absolute -top-11 right-0 text-white/60 hover:text-white transition-colors
-                           w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+                className="absolute -top-11 right-0 text-white/80 hover:text-white transition-colors
+                           w-9 h-9 rounded-full bg-black/60 ring-1 ring-white/20 hover:bg-black/80
+                           backdrop-blur-sm flex items-center justify-center"
                 aria-label="Bezárás"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -190,6 +192,27 @@ function ProblemGroupRow({ group }: { group: ProblemGroup }) {
                 )}
               </div>
 
+              {/* Same actions as the expanded row, available without closing the
+                  lightbox. */}
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                {answerUrl && !answerMissing && (
+                  <LightboxButton onClick={() => { setLightboxOpen(false); setAnswerOpen(true); }}>
+                    Megoldás
+                  </LightboxButton>
+                )}
+                <LightboxButton
+                  variant={inCart ? "active" : "default"}
+                  onClick={handlePrintToggle}
+                  title={inCart ? "Eltávolítás a nyomtatási listából" : "Hozzáadás a nyomtatási listához"}
+                >
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" />
+                  </svg>
+                  {inCart ? "Hozzáadva" : "Nyomtatás"}
+                </LightboxButton>
+              </div>
+
               <p className="mt-1 text-center text-white/50 text-xs">
                 Kattints bárhova vagy nyomj Esc-et a bezáráshoz
               </p>
@@ -208,8 +231,9 @@ function ProblemGroupRow({ group }: { group: ProblemGroup }) {
             <div className="relative w-full max-w-4xl animate-fade-up" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={() => setAnswerOpen(false)}
-                className="absolute -top-11 right-0 text-white/60 hover:text-white transition-colors
-                           w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+                className="absolute -top-11 right-0 text-white/80 hover:text-white transition-colors
+                           w-9 h-9 rounded-full bg-black/60 ring-1 ring-white/20 hover:bg-black/80
+                           backdrop-blur-sm flex items-center justify-center"
                 aria-label="Bezárás"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

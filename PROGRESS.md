@@ -480,3 +480,76 @@ the session memory `dev-workflow-lessons`.
    produces the solutions-only PDF.
 7. **Reorder / remove / clear** in the widget all still work.
 8. **`/feladatsor/<slug>`** — same add / dedup / export checks from that page.
+
+---
+
+## 2026-09-02 — Lightbox: dark action buttons + print/solution actions in the zoom view
+
+**Phase:** n/a — UX polish, outside the §8 phase list (user-requested during Phase 5 testing)
+**Branch:** `feature/problem-grouping`
+**Commit:** `pending`
+
+### What changed
+- **`src/components/LightboxButton.tsx` (new)** — one shared button for the
+  fullscreen image lightboxes. Three variants: `default` (solid near-black,
+  `bg-black/70` + `ring-white/25`), `primary` (navy), `active` (navy tint for
+  a toggled-on state — in cart / solution shown). Solid dark on purpose: the
+  buttons sit on the dimmed backdrop but a light problem image bleeds through
+  right behind them, and the previous translucent-white styling washed out
+  against it.
+- **`src/components/ProblemGroupCard.tsx`**, **`src/components/ProblemList.tsx`**
+  — the plain problem-zoom lightbox gained an action row (**Megoldás** +
+  **Nyomtatás / Hozzáadva**), mirroring the card footer / expanded row, so the
+  user no longer has to close the lightbox to add the problem or open its
+  solution. Uses the existing `handlePrintToggle` (already group-keyed) and
+  `answerUrl` / `answerMissing`. `Megoldás` swaps the problem overlay for the
+  answer overlay. Lightbox close buttons restyled to the same dark chrome.
+- **`src/components/RandomProblemButton.tsx`** — the three modal buttons
+  (Következő / Megoldás / Nyomtatási lista) swapped to `LightboxButton`
+  (`primary` / `active` / `default`); close button restyled to match. Behaviour
+  unchanged.
+- **`src/components/ProblemCard.tsx`** — deliberately **not** touched. It is dead
+  code (rendered on no page since Phase 3) and is removed in Phase 7; adding
+  the same actions there would be throwaway work.
+
+### Why
+- User feedback: in any fullscreen view (random problem, or just zooming a
+  problem) the bottom buttons were light/translucent and nearly invisible when a
+  light image sat behind them. And the plain zoom view had no quick way to
+  print or see the solution — only the random-problem modal did.
+- Shared component instead of copy-pasting a 4-class string into 3 files, and so
+  Phase 7's "extract shared lightbox chrome" note is already half-done.
+
+### Not addressed (still deferred)
+- `ZoomableImage` zoom does not visually scale the image — pre-existing, logged
+  in `FUTURE_IMPROVEMENTS.md` → "Known bugs". Explicitly out of scope here.
+
+### Files touched
+- `src/components/LightboxButton.tsx` — new.
+- `src/components/ProblemGroupCard.tsx` — lightbox action row; `LightboxButton`
+  import; close-button restyle.
+- `src/components/ProblemList.tsx` — same.
+- `src/components/RandomProblemButton.tsx` — buttons → `LightboxButton`;
+  close-button restyle.
+
+### Verification
+- `npm test` — 14/14.
+- `npm run build` — `✓ Compiled successfully`, types valid, 8/8 pages.
+- Not yet exercised in the browser — see manual test plan below.
+
+### Manual test plan (for the user)
+1. `/feladatok` (light mode), click a problem image → lightbox. Below the image:
+   **Megoldás** + **Nyomtatás** buttons, both solid dark and clearly readable
+   even over a white problem image. Repeat in dark mode.
+2. **Nyomtatás** in the lightbox → button flips to "Hozzáadva" (navy tint), cart
+   count goes up. Close the lightbox → the card footer shows "Hozzáadva" too
+   (same item). Click **Nyomtatás** again in the lightbox → removed everywhere.
+3. **Megoldás** in the lightbox → swaps to the answer image; click background /
+   Esc closes it. If a problem has no answer key, the button is absent.
+4. Same two checks in **Lista** view (expand a row → open the image → lightbox
+   actions).
+5. Homepage → **Véletlen**: the Következő / Megoldás / Nyomtatási lista buttons
+   are the same dark style; "Megoldás" still toggles to the solution and back,
+   "Következő" still loads a new one, cart toggle still dedupes against browse.
+6. `/feladatsor/<slug>` grid + list — same lightbox action checks.
+7. Narrow viewport (~375px): the lightbox button row wraps, doesn't overflow.

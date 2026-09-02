@@ -6,6 +6,7 @@ import { getAnswerImageUrl } from "@/lib/answers";
 import { groupKey } from "@/lib/problems";
 import { usePrintCart } from "@/lib/print-cart";
 import ZoomableImage from "@/components/ZoomableImage";
+import LightboxButton from "@/components/LightboxButton";
 
 export default function RandomProblemButton() {
   const [loading,     setLoading]     = useState(false);
@@ -112,8 +113,9 @@ export default function RandomProblemButton() {
             {/* Close */}
             <button
               onClick={() => { setProblem(null); setAnswerOpen(false); }}
-              className="absolute -top-11 right-0 text-white/60 hover:text-white transition-colors
-                         w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+              className="absolute -top-11 right-0 text-white/80 hover:text-white transition-colors
+                         w-9 h-9 rounded-full bg-black/60 ring-1 ring-white/20 hover:bg-black/80
+                         backdrop-blur-sm flex items-center justify-center"
               aria-label="Bezárás"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -170,46 +172,31 @@ export default function RandomProblemButton() {
             {/* Action buttons */}
             <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
               {/* Next random */}
-              <button
-                onClick={fetchRandom}
-                disabled={loading}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold
-                           bg-navy-600 hover:bg-navy-700 text-white transition-colors
-                           disabled:opacity-50 disabled:cursor-wait"
-              >
+              <LightboxButton variant="primary" onClick={fetchRandom} disabled={loading} className="disabled:cursor-wait">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 Következő
-              </button>
+              </LightboxButton>
 
               {/* Show solution */}
               {answerUrl && !answerMissing && (
-                <button
+                <LightboxButton
+                  variant={answerOpen ? "active" : "default"}
                   onClick={() => setAnswerOpen(v => !v)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors
-                    ${answerOpen
-                      ? "bg-white/20 text-white hover:bg-white/30"
-                      : "bg-white/10 text-white/70 hover:bg-white/20"}`}
                 >
                   {answerOpen ? "Feladat" : "Megoldás"}
-                </button>
+                </LightboxButton>
               )}
 
               {/* Add to print cart */}
-              <button
-                onClick={handlePrintToggle}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors
-                  ${inCart
-                    ? "bg-navy-500/40 text-navy-200 hover:bg-navy-500/50"
-                    : "bg-white/10 text-white/70 hover:bg-white/20"}`}
-              >
+              <LightboxButton variant={inCart ? "active" : "default"} onClick={handlePrintToggle}>
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round"
                     d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" />
                 </svg>
                 {inCart ? "Hozzáadva" : "Nyomtatási lista"}
-              </button>
+              </LightboxButton>
             </div>
 
             <p className="text-center text-white/40 text-xs">Esc vagy kattints a háttérre a bezáráshoz</p>
