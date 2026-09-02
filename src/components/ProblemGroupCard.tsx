@@ -33,9 +33,9 @@ export default function ProblemGroupCard({ group, defaultExpandedTag }: Props) {
   const title    = `${group.year} ${session} · ${fullType} · ${group.problem_number}. feladat`;
 
   const { add, remove, isInCart } = usePrintCart();
-  // Phase 2: the print cart is still keyed by a row id — use the representative
-  // sub-part. Phase 5 switches the whole cart to group keys.
-  const cartId = group.subParts[0].id;
+  // The cart is keyed by the problem-group key (§8.4 #9): the same problem is one
+  // entry whether added here, from a list row, or the random dialog.
+  const cartId = group.key;
   const inCart = isInCart(cartId);
   const handlePrintToggle = () => {
     if (inCart) { remove(cartId); return; }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { type Problem, TOPIC_LABELS, SESSION_LABELS } from "@/lib/supabase";
 import { getAnswerImageUrl } from "@/lib/answers";
+import { groupKey } from "@/lib/problems";
 import { usePrintCart } from "@/lib/print-cart";
 import ZoomableImage from "@/components/ZoomableImage";
 
@@ -15,7 +16,12 @@ export default function RandomProblemButton() {
   const { add, remove, isInCart } = usePrintCart();
 
   const answerUrl   = problem ? getAnswerImageUrl(problem) : null;
-  const inCart      = problem ? isInCart(problem.id) : false;
+  // Cart identity is the problem-group key (§8.4 #9), so a problem added here
+  // dedupes against the same problem added from a browse card / list row. The
+  // random endpoint still returns a single sub-part row — grouping it to a
+  // distinct problem is Phase 6.
+  const cartId      = problem ? groupKey(problem) : "";
+  const inCart      = problem ? isInCart(cartId) : false;
 
   async function fetchRandom() {
     setLoading(true);
@@ -51,13 +57,14 @@ export default function RandomProblemButton() {
 
   const handlePrintToggle = () => {
     if (!problem?.problem_image_url) return;
-    if (inCart) { remove(problem.id); return; }
+    if (inCart) { remove(cartId); return; }
     const session  = SESSION_LABELS[problem.exam_session] ?? problem.exam_session;
     const fullType = problem.exam_type === "kozep" ? "Középszint" : "Emelt szint";
-    const subLabel = problem.sub_part ? ` / ${problem.sub_part}` : "";
+    // Whole-problem title (no sub-part label) to match ProblemGroupCard, since
+    // the cart entry represents the problem, not this one sub-part.
     add({
-      id:              problem.id,
-      title:           `${problem.year} ${session} · ${fullType} · ${problem.problem_number}. feladat${subLabel}`,
+      id:              cartId,
+      title:           `${problem.year} ${session} · ${fullType} · ${problem.problem_number}. feladat`,
       problemImageUrl: problem.problem_image_url!,
       answerImageUrl:  answerUrl,
     });

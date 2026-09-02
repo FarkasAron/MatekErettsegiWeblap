@@ -3,6 +3,13 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 
 export interface PrintItem {
+  /**
+   * Problem-group identity — the `key` of the {@link "@/lib/problems".ProblemGroup}
+   * this entry represents, **not** a database row id. One cart entry per problem;
+   * every surface that adds to the cart keys by the same group key, so the same
+   * problem added from a grid card, a list row or the random dialog collapses to
+   * one item (§8.4 decision #9).
+   */
   id:               string;
   title:            string;
   problemImageUrl:  string;
@@ -22,7 +29,16 @@ interface PrintCartCtx {
 
 const Ctx = createContext<PrintCartCtx | null>(null);
 
-const STORAGE_KEY = "veglesine-print-cart-v1";
+/**
+ * localStorage key. Bumped to `-v2` for the §8 problem-grouping refactor: cart
+ * item ids changed from sub-part row ids to problem-group keys, so any persisted
+ * `-v1` cart is structurally stale. It is deliberately discarded rather than
+ * migrated — the cart is ephemeral (decision §8.4 #9).
+ */
+const STORAGE_KEY = "veglesine-print-cart-v2";
+
+/** Superseded storage keys, cleared on load so they don't linger. */
+const LEGACY_STORAGE_KEYS = ["veglesine-print-cart-v1"];
 
 export function PrintCartProvider({ children }: { children: ReactNode }) {
   const [items,     setItems]     = useState<PrintItem[]>([]);
@@ -33,7 +49,9 @@ export function PrintCartProvider({ children }: { children: ReactNode }) {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setItems(JSON.parse(raw) as PrintItem[]);
-    } catch { /* ignore corrupt storage */ }
+      // Drop any pre-grouping cart so it doesn't linger in storage.
+      for (const k of LEGACY_STORAGE_KEYS) localStorage.removeItem(k);
+    } catch { /* ignore corrupt / unavailable storage */ }
     setHydrated(true);
   }, []);
 

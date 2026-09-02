@@ -34,8 +34,8 @@ Entry template:
 | 2 — `/feladatsor/[slug]` grouped cards | ✅ done, committed `265beb9`, user-tested |
 | 3 — `/feladatok` grouped query + pagination | ✅ done, committed `ec724d0`, user-tested |
 | 4 — list view (`ProblemList`) grouped | ✅ done, committed `84d6ada`, user-tested |
-| **5 — print cart → group keys** | **NEXT** |
-| 6 — random endpoint + homepage stat | pending |
+| 5 — print cart → group keys | ✅ done, committed `pending`, not yet user-tested |
+| **6 — random endpoint + homepage stat** | **NEXT** |
 | 7 — review, delete `ProblemCard`, `.gitattributes`, `v1.4.0` | pending |
 | 8 — whole-set print → images-only PDF | pending |
 
@@ -389,3 +389,91 @@ the session memory `dev-workflow-lessons`.
    Phase 8.]
 8. Narrow viewport (~375px): row head wraps gracefully; chips wrap under the
    `a)` label without overflow.
+
+---
+
+## 2026-09-02 — Phase 5: print cart keyed by problem group
+
+**Phase:** PROJECT_PLAN §8.5 Phase 5 — Print cart → problem granularity
+**Branch:** `feature/problem-grouping`
+**Commit:** `pending`
+
+### What changed
+- **`src/lib/print-cart.tsx`**:
+  - `STORAGE_KEY` bumped `veglesine-print-cart-v1` → `-v2`. The persisted cart
+    shape didn't change, but its item ids did (row id → group key), so any old
+    `-v1` cart is structurally stale. Per decision §8.4 #9 it is **discarded, not
+    migrated** — the cart is ephemeral. The old key is also `removeItem`-ed on
+    load so it doesn't linger in `localStorage`.
+  - `PrintItem.id` doc rewritten: it is now the
+    `ProblemGroup.key`, not a DB row id. One cart entry per problem.
+  - No logic change to `add` / `remove` / `isInCart` / `reorder` /
+    `toggleSolution` — all were already plain string-id operations and are
+    identity-agnostic.
+- **`src/components/ProblemGroupCard.tsx`**, **`src/components/ProblemList.tsx`**
+  — `cartId` switched from `group.subParts[0].id` (representative sub-part row)
+  to `group.key`. Add payload was already whole-problem (`group.problem_image_url`,
+  sub-part-free `title`), so only the id changed. Stale "Phase 5 will…" comments
+  replaced.
+- **`src/components/RandomProblemButton.tsx`** — cart id switched from
+  `problem.id` to `groupKey(problem)`; cart `title` dropped its ` / a` sub-part
+  suffix to match `ProblemGroupCard`. This keeps the cart coherent (a random
+  problem now dedupes against the same problem added from a browse card/row).
+  The random **endpoint** and its "return a distinct group" / homepage-stat
+  work remain Phase 6 — only the cart-identity half is done here, because
+  leaving one add-to-cart surface on raw row ids would break cross-surface
+  de-duplication (§8.2 hard constraint: print cart must not regress).
+- **`src/components/ProblemCard.tsx`** — untouched. Still uses `problem.id`, but
+  it is dead code (rendered on no page since Phase 3) and is deleted in Phase 7.
+
+### Why
+- Decision §8.4 #9: the cart and the PDF export operate per problem, not per
+  sub-part row. With the card/list/random surfaces all keyed by `group.key`,
+  adding "2025 emelt máj II / 9. feladat" is one cart item regardless of which
+  view or how many sub-parts it has.
+- `PrintCartWidget`'s jsPDF path (`generatePdf`) consumes only `title`,
+  `problemImageUrl`, `answerImageUrl`, `includeSolution` and matches items by
+  string id equality — it never assumed the id was a UUID, so it needed no
+  change. Verified by reading: `reorder`/`remove`/`toggleSolution`/`key={item.id}`
+  all work unchanged with `|`-delimited group keys.
+
+### Files touched
+- `src/lib/print-cart.tsx` — `STORAGE_KEY` → `-v2`; legacy-key cleanup on load;
+  `PrintItem.id` doc.
+- `src/components/ProblemGroupCard.tsx` — `cartId = group.key`.
+- `src/components/ProblemList.tsx` — `cartId = group.key`.
+- `src/components/RandomProblemButton.tsx` — `cartId = groupKey(problem)`;
+  sub-part-free cart title; `groupKey` import.
+
+### Verification
+- `npm test` — 14/14 (grouping core untouched).
+- `npm run build` — clean, 8/8 pages, types valid (`groupKey` imports fine in a
+  client component — `problems.ts` has no server-only deps).
+- Not yet exercised in the browser — see manual test plan below.
+
+### Manual test plan (for the user)
+1. **Old cart is dropped.** If you have items in the print cart from before this
+   change: reload `/feladatok`. The floating "Nyomtatási lista" button should be
+   **gone** (cart empty). In devtools → Application → Local Storage: no
+   `veglesine-print-cart-v1` key; a `-v2` key appears once you add something.
+2. **Grid add.** `/feladatok`, add a **multi-part** problem from its card
+   ("Nyomtatás" → "Hozzáadva"). Cart count = 1. Open the widget: one thumbnail,
+   title is the whole problem (no `/ a`).
+3. **Cross-view dedup.** Switch to **Lista**, expand the *same* problem, add it.
+   Cart count stays **1** (not 2). Remove it from the list row → the grid card
+   flips back to "Nyomtatás" too.
+4. **Random dedup.** Homepage → "Véletlen" until you get a problem you can also
+   find in the browse list (or just add a random one, note the year/session/
+   number). Add it to the cart from the random dialog. Go to `/feladatok`, find
+   that same problem, and confirm its card already shows "Hozzáadva" and the
+   cart count did not increase.
+5. **Matma stays separate.** Find a problem that has a "matek II" / secondary-
+   language twin (e.g. 2025 emelt május II. #9). Add the regular one, then the
+   matma one — cart count = **2**, two distinct rows.
+6. **PDF export intact.** With 3–4 items in the cart: "Elrendezés beállítása" →
+   toggle a page break and one "Megoldás is" → "PDF generálása". The PDF opens
+   with one problem image per item, page breaks honoured, the solution image
+   inlined where ticked. "Megoldókulcs" button (if any item has a solution)
+   produces the solutions-only PDF.
+7. **Reorder / remove / clear** in the widget all still work.
+8. **`/feladatsor/<slug>`** — same add / dedup / export checks from that page.

@@ -29,9 +29,8 @@ function ProblemGroupRow({ group }: { group: ProblemGroup }) {
   const answerUrl = getAnswerImageUrl(group);
 
   const { add, remove, isInCart } = usePrintCart();
-  // Phase 4: the print cart is still keyed by a row id — use the representative
-  // sub-part, matching ProblemGroupCard. Phase 5 switches the cart to group keys.
-  const cartId = group.subParts[0].id;
+  // The cart is keyed by the problem-group key (§8.4 #9) — matches ProblemGroupCard.
+  const cartId = group.key;
   const inCart = isInCart(cartId);
   const handlePrintToggle = () => {
     if (inCart) { remove(cartId); return; }
