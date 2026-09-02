@@ -34,7 +34,7 @@ Entry template:
 | 2 — `/feladatsor/[slug]` grouped cards | ✅ done, committed `265beb9`, user-tested |
 | 3 — `/feladatok` grouped query + pagination | ✅ done, committed `ec724d0`, user-tested |
 | 4 — list view (`ProblemList`) grouped | ✅ done, committed `84d6ada`, user-tested |
-| 5 — print cart → group keys | ✅ done, committed `pending`, not yet user-tested |
+| 5 — print cart → group keys | ✅ done, committed `1669289`, user-tested |
 | **6 — random endpoint + homepage stat** | **NEXT** |
 | 7 — review, delete `ProblemCard`, `.gitattributes`, `v1.4.0` | pending |
 | 8 — whole-set print → images-only PDF | pending |
@@ -396,7 +396,7 @@ the session memory `dev-workflow-lessons`.
 
 **Phase:** PROJECT_PLAN §8.5 Phase 5 — Print cart → problem granularity
 **Branch:** `feature/problem-grouping`
-**Commit:** `pending`
+**Commit:** `1669289`
 
 ### What changed
 - **`src/lib/print-cart.tsx`**:
@@ -449,7 +449,10 @@ the session memory `dev-workflow-lessons`.
 - `npm test` — 14/14 (grouping core untouched).
 - `npm run build` — clean, 8/8 pages, types valid (`groupKey` imports fine in a
   client component — `problems.ts` has no server-only deps).
-- Not yet exercised in the browser — see manual test plan below.
+- **Manual walk-through by the user — PASSED.** Old `-v1` cart dropped on load;
+  cross-view dedup (grid ↔ list) and random-dialog dedup against browse all give
+  one cart entry; matma twin stays a separate entry; `PrintCartWidget` reorder /
+  remove / clear and both PDF exports (problems, solutions-only) intact.
 
 ### Manual test plan (for the user)
 1. **Old cart is dropped.** If you have items in the print cart from before this
