@@ -25,8 +25,8 @@ Entry template:
 
 ## Current status
 
-**Refactor:** PROJECT_PLAN §8 — Problem-Level Grouping. **Branch:**
-`feature/problem-grouping` (not pushed; `main` at `v1.3.1`).
+**Refactor:** PROJECT_PLAN §8 — Problem-Level Grouping. **Released as `v1.4.0`**
+(merged to `main`). **Branch:** `feature/problem-grouping`.
 
 | Phase | State |
 |---|---|
@@ -35,13 +35,14 @@ Entry template:
 | 3 — `/feladatok` grouped query + pagination | ✅ done, committed `ec724d0`, user-tested |
 | 4 — list view (`ProblemList`) grouped | ✅ done, committed `84d6ada`, user-tested |
 | 5 — print cart → group keys | ✅ done, committed `1669289`, user-tested |
-| 6 — random endpoint + homepage stat | ✅ done, user-tested (hash backfilled with Phase 7) |
-| **7 — review, delete `ProblemCard`, `.gitattributes`, `v1.4.0`** | **NEXT** |
-| 8 — whole-set print → images-only PDF | pending |
+| 6 — random endpoint + homepage stat | ✅ done, committed `cfb73be`, user-tested |
+| 7 — review + docs + `v1.4.0` release | ✅ done, committed `09158f0` (cleanup) + release commit, user-tested |
+| **8 — whole-set print → images-only PDF** | **NEXT** (own work item, post-`v1.4.0`) |
 
-To resume: read this file top-to-bottom plus `PROJECT_PLAN.md` §8, then start
-the phase marked NEXT. Working rules (dev-server cleanup, env, testing) are in
-the session memory `dev-workflow-lessons`.
+Phases 1–7 shipped as `v1.4.0`. Phase 8 is an independent feature (images-only
+PDF for the page-level "Nyomtatás"); pick it up from `PROJECT_PLAN.md` §8.5
+Phase 8. Working rules (dev-server cleanup, env, testing, commit flow) are in the
+session memory `dev-workflow-lessons`.
 
 ---
 
@@ -563,7 +564,7 @@ the session memory `dev-workflow-lessons`.
 
 **Phase:** PROJECT_PLAN §8.5 Phase 6 — Random problem + homepage stat
 **Branch:** `feature/problem-grouping`
-**Commit:** `pending` (hash backfilled with the Phase 7 doc changes)
+**Commit:** `cfb73be`
 
 ### What changed
 - **`src/app/api/random-problem/route.ts` — rewritten to pick a distinct
@@ -639,3 +640,67 @@ the session memory `dev-workflow-lessons`.
    no stuck spinner (endpoint returns an array; empty array keeps the previous
    problem shown).
 7. Dark mode + ~375px width: dialog readable, button row wraps.
+
+---
+
+## 2026-09-02 — Phase 7: review, cleanup, and the v1.4.0 release
+
+**Phase:** PROJECT_PLAN §8.5 Phase 7 — Review, docs, release
+**Branch:** `feature/problem-grouping` → merged to `main`
+**Commits:** `09158f0` (review cleanup) · `<release>` (this entry + version bump)
+
+### What changed
+- **Senior review pass** over every §8-touched file. Findings acted on:
+  - **Dead code:** `src/components/ProblemCard.tsx` deleted (253 lines) — the
+    browse view stopped rendering it in Phase 3, nothing else imported it. The
+    `{@link}` to it in `ProblemGroupCard`'s docstring was reworded.
+  - **Print CSS:** `no-print` added to the five fullscreen overlays (problem +
+    answer lightbox in `ProblemGroupCard` and `ProblemList`, the random-problem
+    modal). Before, `Ctrl+P` / the Nyomtatás button with a lightbox open printed
+    a full black page. The `@media print` block itself was already sound.
+  - **A11y:** `aria-controls` + a `useId()` `id` paired on the `ProblemList`
+    collapsible row (it already had `aria-expanded`; `SubPartList` rows already
+    had both). The `<div onClick>` lightbox triggers (not keyboard-reachable)
+    are a pre-existing pattern — logged in `FUTURE_IMPROVEMENTS.md` as a
+    follow-up rather than widened into this phase.
+  - **`Problem` type consistency:** verified — every card-feeding `SELECT`
+    (`/feladatok`, `/feladatsor/[slug]`, `/api/random-problem`) returns exactly
+    the 12 `Problem` fields; `is_secondary_language` everywhere; no unsafe casts.
+  - **Grid column count:** left at `md:grid-cols-2 xl:grid-cols-3` — user
+    confirmed the 3-up grouped cards look fine during the manual test.
+- **`.gitattributes` (new)** — `* text=auto eol=lf` plus explicit `binary` rules
+  for images/pdf/fonts. Stops the "LF will be replaced by CRLF" churn on Windows
+  checkouts (flagged since the repo relocation).
+- **`package.json`** — version `1.2.0` → `1.4.0`. (It had been left at `1.2.0`
+  through the untagged `v1.3.0` / `v1.3.1` commits; this also resyncs it.)
+- **Release:** backfilled annotated tags `v1.2.0` / `v1.3.0` / `v1.3.1` onto
+  their existing `main` commits (they had only commit-title version markers, no
+  tags), merged `feature/problem-grouping` into `main` with `--no-ff`, tagged
+  the merge `v1.4.0`, pushed `main` + all four tags.
+- **`PROJECT_PLAN.md` §8** status → Complete.
+
+### Why
+- §8 is a backwards-compatible feature set (one card per problem, DB unchanged);
+  it ships as a MINOR bump. The tag backfill and `package.json` resync bring the
+  version history back to a clean, continuous state per the repo's versioning
+  guidelines.
+
+### Files touched
+- `src/components/ProblemCard.tsx` — deleted.
+- `src/components/ProblemGroupCard.tsx`, `src/components/ProblemList.tsx`,
+  `src/components/RandomProblemButton.tsx` — `no-print`; `ProblemList` a11y ids.
+- `.gitattributes` — new.
+- `package.json` — version bump.
+- `PROGRESS.md`, `PROJECT_PLAN.md`, `FUTURE_IMPROVEMENTS.md` — docs.
+
+### Verification
+- `npm test` — 14/14.
+- `npm run build` — `✓ Compiled successfully`, types valid, 8/8 pages.
+- **Manual walk-through by the user — PASSED.** Browse (grid + list),
+  `/feladatsor/<slug>`, random dialog, `/statisztika`, dark mode all render;
+  printing with a lightbox open no longer emits a black page.
+
+### Not in this phase
+- **Phase 8 — whole-set print → images-only PDF** — independent feature,
+  deliberately left for a post-`v1.4.0` work item. `PROJECT_PLAN.md` §8.5 Phase 8
+  has the spec.

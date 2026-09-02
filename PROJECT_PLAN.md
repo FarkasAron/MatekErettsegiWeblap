@@ -701,8 +701,9 @@ Used only for any manually-entered LaTeX in plain-text spans (e.g. variable name
 
 ## 8. Refactor — Problem-Level Grouping (Sub-part Consolidation)
 
-> **Added:** 2026-09-01 · **Status:** Planned; phased implementation in progress.
-> **Version target:** v1.4.0 (backwards-compatible feature).
+> **Added:** 2026-09-01 · **Status:** ✅ Complete — Phases 1–7 shipped in
+> **v1.4.0** (2026-09-02). Phase 8 (whole-set image-only PDF) remains an open
+> follow-up, tracked below.
 > **Per-change detail:** see `PROGRESS.md`.
 
 ### 8.1 Problem statement
@@ -747,6 +748,9 @@ and its "matma" twin would merge into one card.
 Deferred: per-sub-part point scoring — see `FUTURE_IMPROVEMENTS.md`.
 
 ### 8.5 Phases
+
+> Phases 1–7 are ✅ done and shipped in **v1.4.0** (2026-09-02). Phase 8 is open.
+> Commit hashes and per-phase test notes are in `PROGRESS.md`.
 
 **Phase 1 — Grouping core (no visible change)**
 - Goal: a tested grouping layer.
