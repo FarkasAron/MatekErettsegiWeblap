@@ -3,19 +3,23 @@
 import { useState, useEffect } from "react";
 import { type Problem, TOPIC_LABELS, SESSION_LABELS } from "@/lib/supabase";
 import { getAnswerImageUrl } from "@/lib/answers";
+import { groupProblems, type ProblemGroup } from "@/lib/problems";
 import { usePrintCart } from "@/lib/print-cart";
 import ZoomableImage from "@/components/ZoomableImage";
+import LightboxButton from "@/components/LightboxButton";
 
 export default function RandomProblemButton() {
-  const [loading,     setLoading]     = useState(false);
-  const [problem,     setProblem]     = useState<Problem | null>(null);
-  const [answerOpen,  setAnswerOpen]  = useState(false);
+  const [loading,      setLoading]      = useState(false);
+  const [group,        setGroup]        = useState<ProblemGroup | null>(null);
+  const [answerOpen,   setAnswerOpen]   = useState(false);
   const [answerMissing, setAnswerMissing] = useState(false);
 
   const { add, remove, isInCart } = usePrintCart();
 
-  const answerUrl   = problem ? getAnswerImageUrl(problem) : null;
-  const inCart      = problem ? isInCart(problem.id) : false;
+  const answerUrl = group ? getAnswerImageUrl(group) : null;
+  // Cart identity is the problem-group key (§8.4 #9), so a problem added here
+  // dedupes against the same problem added from a browse card / list row.
+  const inCart = group ? isInCart(group.key) : false;
 
   async function fetchRandom() {
     setLoading(true);
@@ -24,8 +28,12 @@ export default function RandomProblemButton() {
     try {
       const res = await fetch("/api/random-problem");
       if (!res.ok) throw new Error("fetch failed");
-      const data = await res.json();
-      if (data) setProblem(data as Problem);
+      // The endpoint returns every sub-part row of one randomly-chosen problem;
+      // fold them into the single group this dialog renders.
+      const rows = (await res.json()) as Problem[];
+      if (Array.isArray(rows) && rows.length > 0) {
+        setGroup(groupProblems(rows)[0] ?? null);
+      }
     } catch (err) {
       console.error("[random] fetch failed:", err);
     } finally {
@@ -35,30 +43,29 @@ export default function RandomProblemButton() {
 
   // Escape closes the modal
   useEffect(() => {
-    if (!problem) return;
+    if (!group) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setProblem(null); setAnswerOpen(false); }
+      if (e.key === "Escape") { setGroup(null); setAnswerOpen(false); }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [problem]);
+  }, [group]);
 
   // Lock body scroll while open
   useEffect(() => {
-    document.body.style.overflow = problem ? "hidden" : "";
+    document.body.style.overflow = group ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [problem]);
+  }, [group]);
 
   const handlePrintToggle = () => {
-    if (!problem?.problem_image_url) return;
-    if (inCart) { remove(problem.id); return; }
-    const session  = SESSION_LABELS[problem.exam_session] ?? problem.exam_session;
-    const fullType = problem.exam_type === "kozep" ? "Középszint" : "Emelt szint";
-    const subLabel = problem.sub_part ? ` / ${problem.sub_part}` : "";
+    if (!group?.problem_image_url) return;
+    if (inCart) { remove(group.key); return; }
+    const session  = SESSION_LABELS[group.exam_session] ?? group.exam_session;
+    const fullType = group.exam_type === "kozep" ? "Középszint" : "Emelt szint";
     add({
-      id:              problem.id,
-      title:           `${problem.year} ${session} · ${fullType} · ${problem.problem_number}. feladat${subLabel}`,
-      problemImageUrl: problem.problem_image_url!,
+      id:              group.key,
+      title:           `${group.year} ${session} · ${fullType} · ${group.problem_number}. feladat`,
+      problemImageUrl: group.problem_image_url,
       answerImageUrl:  answerUrl,
     });
   };
@@ -93,10 +100,10 @@ export default function RandomProblemButton() {
       </button>
 
       {/* ── Problem modal ───────────────────────────────────────────── */}
-      {problem && (
+      {group && (
         <div
-          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-fade-in"
-          onClick={() => { setProblem(null); setAnswerOpen(false); }}
+          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-fade-in no-print"
+          onClick={() => { setGroup(null); setAnswerOpen(false); }}
         >
           <div
             className="relative w-full max-w-4xl animate-fade-up flex flex-col gap-3"
@@ -104,9 +111,10 @@ export default function RandomProblemButton() {
           >
             {/* Close */}
             <button
-              onClick={() => { setProblem(null); setAnswerOpen(false); }}
-              className="absolute -top-11 right-0 text-white/60 hover:text-white transition-colors
-                         w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+              onClick={() => { setGroup(null); setAnswerOpen(false); }}
+              className="absolute -top-11 right-0 text-white/80 hover:text-white transition-colors
+                         w-9 h-9 rounded-full bg-black/60 ring-1 ring-white/20 hover:bg-black/80
+                         backdrop-blur-sm flex items-center justify-center"
               aria-label="Bezárás"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -117,8 +125,8 @@ export default function RandomProblemButton() {
             {/* Image */}
             {!answerOpen ? (
               <ZoomableImage
-                src={problem.problem_image_url!}
-                alt={`${problem.year} véletlenszerű feladat`}
+                src={group.problem_image_url!}
+                alt={`${group.year} véletlenszerű feladat`}
               />
             ) : (
               <ZoomableImage
@@ -131,28 +139,28 @@ export default function RandomProblemButton() {
             {/* Metadata */}
             <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
               <span className="text-white/80 font-semibold">
-                {problem.year} {SESSION_LABELS[problem.exam_session] ?? problem.exam_session}
+                {group.year} {SESSION_LABELS[group.exam_session] ?? group.exam_session}
               </span>
               <span className="text-white/30">·</span>
-              <span className={`badge text-white ${problem.exam_type === "emelt" ? "bg-crimson-600" : "bg-navy-600"}`}>
-                {problem.exam_type === "kozep" ? "Középszint" : "Emelt szint"}
+              <span className={`badge text-white ${group.exam_type === "emelt" ? "bg-crimson-600" : "bg-navy-600"}`}>
+                {group.exam_type === "kozep" ? "Középszint" : "Emelt szint"}
               </span>
               <span className="text-white/30">·</span>
               <span className="text-white/80">
-                {problem.problem_number}. feladat{problem.sub_part ? ` / ${problem.sub_part}` : ""}
+                {group.problem_number}. feladat
               </span>
-              {problem.max_points && (
+              {group.max_points != null && (
                 <>
                   <span className="text-white/30">·</span>
-                  <span className="text-white/60">{problem.max_points} pont</span>
+                  <span className="text-white/60">{group.max_points} pont</span>
                 </>
               )}
             </div>
 
-            {/* Topic tags */}
-            {problem.topic_tags.length > 0 && (
+            {/* Topic tags — union across the problem's sub-parts */}
+            {group.allTags.length > 0 && (
               <div className="flex flex-wrap justify-center gap-1.5">
-                {problem.topic_tags.map(tag => (
+                {group.allTags.map(tag => (
                   <span key={tag} className="badge bg-white/10 text-white/70 border border-white/10">
                     {TOPIC_LABELS[tag] ?? tag}
                   </span>
@@ -163,46 +171,31 @@ export default function RandomProblemButton() {
             {/* Action buttons */}
             <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
               {/* Next random */}
-              <button
-                onClick={fetchRandom}
-                disabled={loading}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold
-                           bg-navy-600 hover:bg-navy-700 text-white transition-colors
-                           disabled:opacity-50 disabled:cursor-wait"
-              >
+              <LightboxButton variant="primary" onClick={fetchRandom} disabled={loading} className="disabled:cursor-wait">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 Következő
-              </button>
+              </LightboxButton>
 
               {/* Show solution */}
               {answerUrl && !answerMissing && (
-                <button
+                <LightboxButton
+                  variant={answerOpen ? "active" : "default"}
                   onClick={() => setAnswerOpen(v => !v)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors
-                    ${answerOpen
-                      ? "bg-white/20 text-white hover:bg-white/30"
-                      : "bg-white/10 text-white/70 hover:bg-white/20"}`}
                 >
                   {answerOpen ? "Feladat" : "Megoldás"}
-                </button>
+                </LightboxButton>
               )}
 
               {/* Add to print cart */}
-              <button
-                onClick={handlePrintToggle}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors
-                  ${inCart
-                    ? "bg-navy-500/40 text-navy-200 hover:bg-navy-500/50"
-                    : "bg-white/10 text-white/70 hover:bg-white/20"}`}
-              >
+              <LightboxButton variant={inCart ? "active" : "default"} onClick={handlePrintToggle}>
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round"
                     d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" />
                 </svg>
                 {inCart ? "Hozzáadva" : "Nyomtatási lista"}
-              </button>
+              </LightboxButton>
             </div>
 
             <p className="text-center text-white/40 text-xs">Esc vagy kattints a háttérre a bezáráshoz</p>

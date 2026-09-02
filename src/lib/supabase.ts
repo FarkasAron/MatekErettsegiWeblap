@@ -10,6 +10,8 @@ export type Problem = {
   max_points: number | null;
   topic_tags: string[];
   ocr_used: boolean;
+  /** True for the "matma" (secondary-language) variant of an exam paper. */
+  is_secondary_language: boolean;
 };
 
 export const SESSION_LABELS: Record<string, string> = {
