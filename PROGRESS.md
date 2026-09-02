@@ -704,3 +704,47 @@ session memory `dev-workflow-lessons`.
 - **Phase 8 — whole-set print → images-only PDF** — independent feature,
   deliberately left for a post-`v1.4.0` work item. `PROJECT_PLAN.md` §8.5 Phase 8
   has the spec.
+
+---
+
+## 2026-09-02 — v1.4.0 deployed to the production LXC
+
+**Phase:** n/a — release deployment
+**Commit:** `<this>` (docs + `deploy.sh` only)
+
+### What happened
+- **`v1.4.0` is live** on the Proxmox LXC (`nextjs`, app at `/var/www/nextjs`,
+  PM2 process `veglesine-web`, nginx → `:3000`). Verified: fresh `.next` build,
+  PM2 uptime reset, `curl localhost:3000` → 200, homepage "Feladat" stat now
+  reads the grouped **1 453**.
+- **Auth fixed:** the server's `origin` is now `git@github.com:...` over SSH with
+  a read-only **deploy key** (`nextjs-lxc-deploy`). It previously had an HTTPS
+  remote with no working credential (the repo is private); an embedded/ helper
+  PAT had lapsed.
+- **`deploy.sh` written and committed.** The server already had a bare
+  `deploy.sh`; first run of the improved version **skipped the build** because
+  an early `git pull` had already advanced `HEAD`, so its "no new commits → exit"
+  guard fired before `npm ci` / `npm run build` / `pm2 restart`. Fixed: the
+  script now always rebuilds and restarts regardless of whether `git` pulled
+  anything. Ran it manually once to recover the missed build.
+- **`DEPLOYMENT.md` (new)** — the real production layout and the deploy /
+  rollback procedure. `MIGRATION_GUIDE.md` is left as-is but is partly stale
+  (`/var/www/veglesine` path, old `VeglesineWeb.git` name) — `DEPLOYMENT.md`
+  supersedes it for routine updates.
+
+### Files touched
+- `deploy.sh` — new (tracked; the server's copy is byte-identical).
+- `DEPLOYMENT.md` — new.
+- `PROGRESS.md` — this entry.
+
+### Verification
+- On the LXC: `pm2 describe veglesine-web` (uptime reset, restarts bumped),
+  `.next/BUILD_ID` mtime = now, `curl -fsS -o /dev/null -w '%{http_code}'
+  localhost:3000` → 200, grouped views + 1 453 stat confirmed in the browser.
+
+### Follow-ups
+- §8 **Phase 8** (whole-set print → images-only PDF) is the remaining grouping
+  work — independent, not blocking, spec in `PROJECT_PLAN.md` §8.5 Phase 8.
+- One-time: on the next `git pull` the server may report `deploy.sh` "would be
+  overwritten" (it was untracked there first) — `rm deploy.sh` once, then it
+  comes from the repo.
