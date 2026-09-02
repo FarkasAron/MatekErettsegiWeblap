@@ -33,7 +33,7 @@ Entry template:
 | 1 — grouping core | ✅ done, committed `32eda3d`, manual test n/a |
 | 2 — `/feladatsor/[slug]` grouped cards | ✅ done, committed `265beb9`, user-tested |
 | 3 — `/feladatok` grouped query + pagination | ✅ done, committed `ec724d0`, user-tested |
-| 4 — list view (`ProblemList`) grouped | ✅ done, committed `ce21052`, awaiting user test |
+| 4 — list view (`ProblemList`) grouped | ✅ done, committed `84d6ada`, user-tested |
 | **5 — print cart → group keys** | **NEXT** |
 | 6 — random endpoint + homepage stat | pending |
 | 7 — review, delete `ProblemCard`, `.gitattributes`, `v1.4.0` | pending |
@@ -300,7 +300,7 @@ the session memory `dev-workflow-lessons`.
 
 **Phase:** PROJECT_PLAN §8.5 Phase 4 — List view (`ProblemList` v2)
 **Branch:** `feature/problem-grouping`
-**Commit:** `ce21052`
+**Commit:** `84d6ada`
 
 ### What changed
 - **`src/components/ProblemList.tsx` — rewritten to consume `ProblemGroup[]`**
@@ -356,7 +356,17 @@ the session memory `dev-workflow-lessons`.
 - Grid unchanged: `/feladatok?szint=emelt&ev=2025` → 27 `<article>` cards, 71
   sub-part collapsible rows (`SubPartList` `"grid"` variant intact).
 - No server errors in the dev log.
-- **Not yet user-tested** — manual walk-through pending (see test plan below).
+- **Manual walk-through by the user — PASSED.** Lista nézet on `/feladatok` and
+  `/feladatsor/<slug>`: one row per problem, expand → image + `a) b) c)` rows
+  with right-aligned chips, single-part rows show tags directly. Image lightbox,
+  Megoldás lightbox, print toggle, dark mode, narrow viewport all fine.
+
+### Notes surfaced (out of scope, pre-existing — both already logged)
+- **Print button** feeds `window.print()` of the styled page, not an images-only
+  PDF. Known; that is Phase 8's whole job. Button wiring itself works.
+- **Lightbox zoom** still only moves the zoom-% readout without visually scaling
+  the image. Pre-existing bug, unrelated to grouping — first seen in Phase 2,
+  already in `FUTURE_IMPROVEMENTS.md` → "Known bugs".
 
 ### Manual test plan (for the user)
 1. `/feladatok`, switch to **Lista** view. Expect one row per problem (title +
