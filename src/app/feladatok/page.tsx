@@ -243,7 +243,7 @@ export default async function FeladatokPage({ searchParams }: Props) {
           <p className="text-sm mt-2">Próbálj kevesebb szűrőt alkalmazni.</p>
         </div>
       ) : view === "list" ? (
-        <ProblemList problems={groups.flatMap((g) => g.subParts)} />
+        <ProblemList groups={groups} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {groups.map((g) => (

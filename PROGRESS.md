@@ -33,8 +33,8 @@ Entry template:
 | 1 — grouping core | ✅ done, committed `32eda3d`, manual test n/a |
 | 2 — `/feladatsor/[slug]` grouped cards | ✅ done, committed `265beb9`, user-tested |
 | 3 — `/feladatok` grouped query + pagination | ✅ done, committed `ec724d0`, user-tested |
-| **4 — list view (`ProblemList`) grouped** | **NEXT** |
-| 5 — print cart → group keys | pending |
+| 4 — list view (`ProblemList`) grouped | ✅ done, committed `ce21052`, awaiting user test |
+| **5 — print cart → group keys** | **NEXT** |
 | 6 — random endpoint + homepage stat | pending |
 | 7 — review, delete `ProblemCard`, `.gitattributes`, `v1.4.0` | pending |
 | 8 — whole-set print → images-only PDF | pending |
@@ -293,3 +293,89 @@ the session memory `dev-workflow-lessons`.
 ### Also
 - `util._extend` DEP0060 deprecation warning during `npm run dev` — emitted by a
   Next.js dev-server dependency, not project code; harmless, no action.
+
+---
+
+## 2026-09-02 — Phase 4: list view grouped by problem
+
+**Phase:** PROJECT_PLAN §8.5 Phase 4 — List view (`ProblemList` v2)
+**Branch:** `feature/problem-grouping`
+**Commit:** `ce21052`
+
+### What changed
+- **`src/components/ProblemList.tsx` — rewritten to consume `ProblemGroup[]`**
+  instead of a flat `Problem[]`. `ProblemRow` → `ProblemGroupRow`: **one
+  collapsible row per problem**, not per sub-part. Row head shows the problem
+  title + points badge only (decision §8.4 #7) — the old head's first-two
+  topic-tag chips are gone (a problem's tags live per sub-part now). Expanding
+  reveals a single whole-problem image (click → `ZoomableImage` lightbox, carried
+  over unchanged) and `SubPartList` in its new `"list"` variant. `aria-expanded`
+  added to the row toggle.
+- **Parity with `ProblemGroupCard`:** the expanded row gained the **"Megoldás"**
+  answer-key button + lightbox (`getAnswerImageUrl(group)`), which the
+  pre-grouping list never had. Print-toggle button kept; still keyed by the
+  representative sub-part row id (`group.subParts[0].id`), matching the card —
+  Phase 5 moves the whole cart to group keys.
+- **`src/components/SubPartList.tsx` — `variant?: "grid" | "list"` prop.**
+  `"grid"` (default) is the unchanged space-constrained layout (each sub-part its
+  own collapsible row). `"list"` renders every sub-part as a static row — `a)`
+  label left, topic chips right-aligned (`TagChips` gained a `className`
+  passthrough for `justify-end`), no second collapse level, per decision §8.4 #7
+  ("list view has more horizontal room"). Single-part problems still render tags
+  directly in both variants.
+- **`src/app/feladatok/page.tsx`** — list branch `<ProblemList problems={groups.flatMap(g => g.subParts)} />`
+  → `<ProblemList groups={groups} />`.
+- **`src/app/feladatsor/[slug]/page.tsx`** — list branch `<ProblemList problems={problems} />`
+  → `<ProblemList groups={groups} />` (`groups` was already computed for the grid).
+
+### Why
+- Last view still rendering one card per sub-part row. Decision §8.4 #7: the
+  list's outer collapsible unit becomes the problem; sub-parts move inside it
+  with their tags shown inline, exploiting the horizontal room the grid card
+  lacks. Brings list/grid to visual parity (one image per problem, sub-part
+  breakdown, solution + print actions).
+- `variant` prop on `SubPartList` rather than a second component: the two layouts
+  differ only in whether each sub-part row self-collapses.
+
+### Files touched
+- `src/components/ProblemList.tsx` — rewrite: group-based `ProblemGroupRow`,
+  answer lightbox added.
+- `src/components/SubPartList.tsx` — `variant` prop + `"list"` layout;
+  `TagChips` `className` passthrough.
+- `src/app/feladatok/page.tsx` — list-branch prop.
+- `src/app/feladatsor/[slug]/page.tsx` — list-branch prop.
+
+### Verification (automated, `npm run dev` probes)
+- `npm test` — 14/14 (grouping core untouched).
+- `npm run build` — clean, 8/8 pages, types valid.
+- `/feladatok?nezet=list&szint=emelt&ev=2025` → header **27 feladat**, **27**
+  collapsed problem rows (`aria-expanded="false"`), no `". feladat / a"`
+  sub-part-style titles. Matches Phase 3's grouped count for the same filter.
+- `/feladatsor/2025-emelt-majus-ii?nezet=list` → header **5 feladat**, **5**
+  collapsed rows (problems 5–9). Matches Phase 2's grid.
+- Grid unchanged: `/feladatok?szint=emelt&ev=2025` → 27 `<article>` cards, 71
+  sub-part collapsible rows (`SubPartList` `"grid"` variant intact).
+- No server errors in the dev log.
+- **Not yet user-tested** — manual walk-through pending (see test plan below).
+
+### Manual test plan (for the user)
+1. `/feladatok`, switch to **Lista** view. Expect one row per problem (title +
+   `pt` badge only, no tag chips on the row). Row count = header count.
+2. Expand a **multi-part** problem (e.g. an emelt Part II problem): one image,
+   then `a) b) c)` rows with topic chips to the right of each label. Expand a
+   **single-part** problem: one image, tags shown directly, no `a)` rows.
+3. Click the image → lightbox opens, scroll/zoom works, Esc + click-outside
+   close it. **Megoldás** button → answer image lightbox (or the button is
+   absent when no answer key exists). **Nyomtatás** toggle → adds/removes;
+   re-render the page and confirm the state persists (localStorage).
+4. Add the same problem from the **grid** card and from the **list** row —
+   confirm it is the *same* cart item (not duplicated). [Cart still row-keyed
+   until Phase 5.]
+5. `/feladatsor/<any exam>?nezet=list` — same checks; középszint sets should be
+   mostly single-part rows.
+6. Dark mode: row hover, chips, divider lines, lightbox captions all readable.
+7. Print (`Ctrl+P` / Nyomtatás): expanded rows' images print; collapsed rows
+   contribute nothing. `no-print` chrome hidden. [Whole-set image-only PDF is
+   Phase 8.]
+8. Narrow viewport (~375px): row head wraps gracefully; chips wrap under the
+   `a)` label without overflow.

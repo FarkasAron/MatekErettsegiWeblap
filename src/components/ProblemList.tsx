@@ -2,53 +2,70 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { type Problem, TOPIC_LABELS, SESSION_LABELS } from "@/lib/supabase";
+import { SESSION_LABELS } from "@/lib/supabase";
+import type { ProblemGroup } from "@/lib/problems";
 import ZoomableImage from "@/components/ZoomableImage";
+import SubPartList from "@/components/SubPartList";
 import { getAnswerImageUrl } from "@/lib/answers";
 import { usePrintCart } from "@/lib/print-cart";
 
-function ProblemRow({ problem }: { problem: Problem }) {
-  const [open,        setOpen]        = useState(false);
+/**
+ * One collapsible row per problem (decision §8.4 #7): the head shows the problem
+ * title and points only. Expanding reveals a single whole-problem image plus the
+ * sub-part breakdown with each sub-part's tags — the list-view counterpart of
+ * {@link "@/components/ProblemGroupCard"}.
+ */
+function ProblemGroupRow({ group }: { group: ProblemGroup }) {
+  const [open,         setOpen]         = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [answerOpen,   setAnswerOpen]   = useState(false);
+  const [answerMissing, setAnswerMissing] = useState(false);
 
-  const session  = SESSION_LABELS[problem.exam_session] ?? problem.exam_session;
-  const examType = problem.exam_type === "kozep" ? "Középszint" : "Emelt szint";
-  const subLabel = problem.sub_part ? ` / ${problem.sub_part}` : "";
-  const title    = `${problem.year} ${session} · ${examType} · ${problem.problem_number}. feladat${subLabel}`;
+  const session  = SESSION_LABELS[group.exam_session] ?? group.exam_session;
+  const examType = group.exam_type === "kozep" ? "Középszint" : "Emelt szint";
+  const isEmelt  = group.exam_type === "emelt";
+  const title    = `${group.year} ${session} · ${examType} · ${group.problem_number}. feladat`;
 
-  const answerUrl = getAnswerImageUrl(problem);
+  const answerUrl = getAnswerImageUrl(group);
+
   const { add, remove, isInCart } = usePrintCart();
-  const inCart = isInCart(problem.id);
+  // Phase 4: the print cart is still keyed by a row id — use the representative
+  // sub-part, matching ProblemGroupCard. Phase 5 switches the cart to group keys.
+  const cartId = group.subParts[0].id;
+  const inCart = isInCart(cartId);
   const handlePrintToggle = () => {
-    if (inCart) { remove(problem.id); return; }
-    if (!problem.problem_image_url) return;
+    if (inCart) { remove(cartId); return; }
+    if (!group.problem_image_url) return;
     add({
-      id:              problem.id,
+      id:              cartId,
       title,
-      problemImageUrl: problem.problem_image_url,
+      problemImageUrl: group.problem_image_url,
       answerImageUrl:  answerUrl,
     });
   };
 
-  // Close lightbox on Escape
+  // Escape closes whichever lightbox is open.
   useEffect(() => {
-    if (!lightboxOpen) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setLightboxOpen(false); };
+    if (!lightboxOpen && !answerOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setLightboxOpen(false); setAnswerOpen(false); }
+    };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [lightboxOpen]);
+  }, [lightboxOpen, answerOpen]);
 
-  // Prevent body scroll while lightbox open
+  // Prevent body scroll while any lightbox is open.
   useEffect(() => {
-    document.body.style.overflow = lightboxOpen ? "hidden" : "";
+    document.body.style.overflow = (lightboxOpen || answerOpen) ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [lightboxOpen]);
+  }, [lightboxOpen, answerOpen]);
 
   return (
     <>
       <div className="border-b border-slate-100 dark:border-slate-800 last:border-0">
         <button
           onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
           className="w-full flex items-center gap-3 px-4 py-3.5
                      hover:bg-navy-50/50 dark:hover:bg-white/[0.03]
                      text-left transition-colors group"
@@ -64,37 +81,23 @@ function ProblemRow({ problem }: { problem: Problem }) {
           </span>
 
           {/* Points */}
-          {problem.max_points && (
+          {group.max_points != null && (
             <span className="badge bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400 shrink-0">
-              {problem.max_points} pt
+              {group.max_points} pt
             </span>
           )}
-
-          {/* First 2 topic tags */}
-          <div className="hidden sm:flex gap-1 shrink-0">
-            {problem.topic_tags.slice(0, 2).map((tag) => (
-              <span key={tag} className="badge bg-navy-50 text-navy-600 dark:bg-white/10 dark:text-slate-200 border border-navy-100/60 dark:border-white/10">
-                {TOPIC_LABELS[tag] ?? tag}
-              </span>
-            ))}
-            {problem.topic_tags.length > 2 && (
-              <span className="badge bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-300">
-                +{problem.topic_tags.length - 2}
-              </span>
-            )}
-          </div>
         </button>
 
         {/* Expanded content */}
         {open && (
           <div className="px-4 sm:px-10 pb-6 pt-1 animate-fade-in border-t border-slate-100 dark:border-slate-800">
-            {problem.problem_image_url ? (
+            {group.problem_image_url ? (
               <div
                 className="relative mt-4 inline-block cursor-zoom-in group/img"
                 onClick={() => setLightboxOpen(true)}
               >
                 <Image
-                  src={problem.problem_image_url}
+                  src={group.problem_image_url}
                   alt={title}
                   width={900}
                   height={500}
@@ -114,21 +117,24 @@ function ProblemRow({ problem }: { problem: Problem }) {
             ) : (
               <p className="text-sm text-slate-400 mt-4">Nincs elérhető kép.</p>
             )}
-            {problem.topic_tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {problem.topic_tags.map((tag) => (
-                  <a key={tag} href={`/feladatok?tema=${tag}`}
-                    className="badge bg-navy-50 text-navy-600 hover:bg-navy-100
-                               dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15
-                               transition-colors border border-navy-100/60 dark:border-white/10">
-                    {TOPIC_LABELS[tag] ?? tag}
-                  </a>
-                ))}
-              </div>
-            )}
 
-            {problem.problem_image_url && (
-              <div className="mt-3">
+            {/* Sub-part breakdown — tags inline, right of the a)/b) label (decision §8.4 #7) */}
+            <div className="mt-4">
+              <SubPartList subParts={group.subParts} variant="list" />
+            </div>
+
+            {group.problem_image_url && (
+              <div className="mt-4 flex items-center gap-2 flex-wrap">
+                {answerUrl && !answerMissing && (
+                  <button
+                    onClick={() => setAnswerOpen(true)}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-full transition-colors
+                               bg-slate-100 text-slate-500 hover:bg-slate-200
+                               dark:bg-white/10 dark:text-slate-400 dark:hover:bg-white/15"
+                  >
+                    Megoldás
+                  </button>
+                )}
                 <button
                   onClick={handlePrintToggle}
                   title={inCart ? "Eltávolítás a nyomtatási listából" : "Hozzáadás a nyomtatási listához"}
@@ -150,53 +156,86 @@ function ProblemRow({ problem }: { problem: Problem }) {
         )}
       </div>
 
-      {/* Lightbox modal */}
-      {lightboxOpen && (
+      {/* ── Problem lightbox ─────────────────────────────────────────── */}
+      {lightboxOpen && group.problem_image_url && (
         <div
-          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-fade-in"
+          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm overflow-y-auto animate-fade-in"
           onClick={() => setLightboxOpen(false)}
         >
-          <div
-            className="relative w-full max-w-4xl animate-fade-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Close button */}
-            <button
-              onClick={() => setLightboxOpen(false)}
-              className="absolute -top-11 right-0 text-white/60 hover:text-white transition-colors
-                         w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
-              aria-label="Bezárás"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+          <div className="min-h-full flex items-center justify-center p-4 sm:p-8">
+            <div className="relative w-full max-w-4xl animate-fade-up" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => setLightboxOpen(false)}
+                className="absolute -top-11 right-0 text-white/60 hover:text-white transition-colors
+                           w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+                aria-label="Bezárás"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
 
-            <ZoomableImage
-              src={problem.problem_image_url!}
-              alt={title}
-            />
+              <ZoomableImage src={group.problem_image_url} alt={title} />
 
-            {/* Caption */}
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm">
-              <span className="text-white/80 font-semibold">{problem.year} {session}</span>
-              <span className="text-white/30">·</span>
-              <span className={`badge text-white ${problem.exam_type === "emelt" ? "bg-crimson-600" : "bg-navy-600"}`}>
-                {examType}
-              </span>
-              <span className="text-white/30">·</span>
-              <span className="text-white/80">{problem.problem_number}. feladat{subLabel}</span>
-              {problem.max_points && (
-                <>
-                  <span className="text-white/30">·</span>
-                  <span className="text-white/60">{problem.max_points} pont</span>
-                </>
-              )}
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm">
+                <span className="text-white/80 font-semibold">{group.year} {session}</span>
+                <span className="text-white/30">·</span>
+                <span className={`badge text-white ${isEmelt ? "bg-crimson-600" : "bg-navy-600"}`}>{examType}</span>
+                <span className="text-white/30">·</span>
+                <span className="text-white/80">{group.problem_number}. feladat</span>
+                {group.max_points != null && (
+                  <>
+                    <span className="text-white/30">·</span>
+                    <span className="text-white/60">{group.max_points} pont</span>
+                  </>
+                )}
+              </div>
+
+              <p className="mt-1 text-center text-white/50 text-xs">
+                Kattints bárhova vagy nyomj Esc-et a bezáráshoz
+              </p>
             </div>
+          </div>
+        </div>
+      )}
 
-            <p className="mt-1 text-center text-white/50 text-xs">
-              Kattints bárhova vagy nyomj Esc-et a bezáráshoz
-            </p>
+      {/* ── Answer lightbox ──────────────────────────────────────────── */}
+      {answerOpen && answerUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm overflow-y-auto animate-fade-in"
+          onClick={() => setAnswerOpen(false)}
+        >
+          <div className="min-h-full flex items-center justify-center p-4 sm:p-8">
+            <div className="relative w-full max-w-4xl animate-fade-up" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => setAnswerOpen(false)}
+                className="absolute -top-11 right-0 text-white/60 hover:text-white transition-colors
+                           w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+                aria-label="Bezárás"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <ZoomableImage
+                src={answerUrl}
+                alt={`Megoldás – ${title}`}
+                onError={() => { setAnswerMissing(true); setAnswerOpen(false); }}
+              />
+
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm">
+                <span className={`badge text-white ${isEmelt ? "bg-crimson-600" : "bg-navy-600"}`}>Megoldás</span>
+                <span className="text-white/30">·</span>
+                <span className="text-white/80 font-semibold">{group.year} {session}</span>
+                <span className="text-white/30">·</span>
+                <span className="text-white/80">{group.problem_number}. feladat</span>
+              </div>
+
+              <p className="mt-1 text-center text-white/50 text-xs">
+                Kattints bárhova vagy nyomj Esc-et a bezáráshoz
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -204,11 +243,11 @@ function ProblemRow({ problem }: { problem: Problem }) {
   );
 }
 
-export default function ProblemList({ problems }: { problems: Problem[] }) {
+export default function ProblemList({ groups }: { groups: ProblemGroup[] }) {
   return (
     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm">
-      {problems.map((p) => (
-        <ProblemRow key={p.id} problem={p} />
+      {groups.map((g) => (
+        <ProblemGroupRow key={g.key} group={g} />
       ))}
     </div>
   );

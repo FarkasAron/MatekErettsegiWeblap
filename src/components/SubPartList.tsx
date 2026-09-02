@@ -4,14 +4,14 @@ import { useState } from "react";
 import { TOPIC_LABELS, type Problem } from "@/lib/supabase";
 
 /** Clickable topic-tag chips for one sub-part; links to the filtered browse view. */
-function TagChips({ tags }: { tags: string[] }) {
+function TagChips({ tags, className = "" }: { tags: string[]; className?: string }) {
   if (tags.length === 0) {
     return (
       <span className="text-xs text-slate-400 dark:text-slate-500">Nincs témakör</span>
     );
   }
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className={`flex flex-wrap gap-1 ${className}`}>
       {tags.map((tag) => (
         <a
           key={tag}
@@ -72,19 +72,43 @@ interface Props {
   subParts: Problem[];
   /** Sub-part rows whose `topic_tags` include this slug start expanded. */
   defaultExpandedTag?: string;
+  /**
+   * `"grid"` (default) — the space-constrained card layout: each sub-part is its
+   * own collapsible row (tap to reveal the tags).
+   * `"list"` — the list view has horizontal room (decision §8.4 #7), so every
+   * sub-part's tags are shown inline, right of the `a)` label, no extra collapse.
+   */
+  variant?: "grid" | "list";
 }
 
 /**
  * The sub-part breakdown beneath a problem card. Single-part problems (one row
  * with a NULL `sub_part`) render their tags directly; multi-part problems render
- * a collapsible list, one row per sub-part.
+ * one row per sub-part — collapsible in the `"grid"` variant, always-open with
+ * right-aligned tags in the `"list"` variant.
  */
-export default function SubPartList({ subParts, defaultExpandedTag }: Props) {
+export default function SubPartList({ subParts, defaultExpandedTag, variant = "grid" }: Props) {
   if (subParts.length === 1 && subParts[0].sub_part == null) {
     return (
       <div className="pt-0.5">
         <TagChips tags={subParts[0].topic_tags ?? []} />
       </div>
+    );
+  }
+
+  if (variant === "list") {
+    return (
+      <ul className="divide-y divide-slate-100 dark:divide-slate-700/50
+                     border-t border-slate-100 dark:border-slate-700/50">
+        {subParts.map((sp) => (
+          <li key={sp.id} className="flex items-start justify-between gap-4 py-2.5">
+            <span className="font-mono text-sm font-semibold text-slate-700 dark:text-slate-200 shrink-0 pt-0.5">
+              {sp.sub_part ? `${sp.sub_part})` : "—"}
+            </span>
+            <TagChips tags={sp.topic_tags ?? []} className="justify-end" />
+          </li>
+        ))}
+      </ul>
     );
   }
 

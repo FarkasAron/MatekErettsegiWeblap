@@ -117,7 +117,7 @@ export default async function FeladatsorDetailPage({
           <p className="text-lg">Nincs elérhető feladat ehhez a feladatsorhoz.</p>
         </div>
       ) : view === "list" ? (
-        <ProblemList problems={problems} />
+        <ProblemList groups={groups} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {groups.map((g) => (
