@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import Image from "next/image";
 import { SESSION_LABELS } from "@/lib/supabase";
 import type { ProblemGroup } from "@/lib/problems";
@@ -21,6 +21,7 @@ function ProblemGroupRow({ group }: { group: ProblemGroup }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [answerOpen,   setAnswerOpen]   = useState(false);
   const [answerMissing, setAnswerMissing] = useState(false);
+  const panelId = useId();
 
   const session  = SESSION_LABELS[group.exam_session] ?? group.exam_session;
   const examType = group.exam_type === "kozep" ? "Középszint" : "Emelt szint";
@@ -66,6 +67,7 @@ function ProblemGroupRow({ group }: { group: ProblemGroup }) {
         <button
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
+          aria-controls={panelId}
           className="w-full flex items-center gap-3 px-4 py-3.5
                      hover:bg-navy-50/50 dark:hover:bg-white/[0.03]
                      text-left transition-colors group"
@@ -90,7 +92,7 @@ function ProblemGroupRow({ group }: { group: ProblemGroup }) {
 
         {/* Expanded content */}
         {open && (
-          <div className="px-4 sm:px-10 pb-6 pt-1 animate-fade-in border-t border-slate-100 dark:border-slate-800">
+          <div id={panelId} className="px-4 sm:px-10 pb-6 pt-1 animate-fade-in border-t border-slate-100 dark:border-slate-800">
             {group.problem_image_url ? (
               <div
                 className="relative mt-4 inline-block cursor-zoom-in group/img"
@@ -159,7 +161,7 @@ function ProblemGroupRow({ group }: { group: ProblemGroup }) {
       {/* ── Problem lightbox ─────────────────────────────────────────── */}
       {lightboxOpen && group.problem_image_url && (
         <div
-          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm overflow-y-auto animate-fade-in"
+          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm overflow-y-auto animate-fade-in no-print"
           onClick={() => setLightboxOpen(false)}
         >
           <div className="min-h-full flex items-center justify-center p-4 sm:p-8">
@@ -224,7 +226,7 @@ function ProblemGroupRow({ group }: { group: ProblemGroup }) {
       {/* ── Answer lightbox ──────────────────────────────────────────── */}
       {answerOpen && answerUrl && (
         <div
-          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm overflow-y-auto animate-fade-in"
+          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm overflow-y-auto animate-fade-in no-print"
           onClick={() => setAnswerOpen(false)}
         >
           <div className="min-h-full flex items-center justify-center p-4 sm:p-8">

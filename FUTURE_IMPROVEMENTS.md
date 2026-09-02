@@ -111,3 +111,22 @@ review pass over the ~100 flagged groups via the review app; or a one-off
 correction script. Recommend a dedicated "sub-part audit" task after §8 ships.
 
 **Added:** 2026-09-02
+
+## Lightbox image triggers are not keyboard-accessible
+
+**What:** The clickable problem/answer images that open the fullscreen lightbox
+are `<div onClick>` (with `cursor-zoom-in`), not buttons — no `role`, no
+`tabIndex`, no key handler. Keyboard and screen-reader users can't open the
+lightbox.
+
+**Where:** `src/components/ProblemGroupCard.tsx` (card image),
+`src/components/ProblemList.tsx` (expanded-row image). `ZoomableImage`'s own
+controls inside the lightbox are real `<button>`s and are fine.
+
+**Status:** Pre-existing pattern (the deleted `ProblemCard.tsx` had it too);
+noted during the §8 Phase 7 review, left out of scope to keep that phase to the
+grouping work. Fix: make each trigger a `<button>` (or add
+`role="button"` + `tabIndex={0}` + `onKeyDown` for Enter/Space) and a visible
+focus ring.
+
+**Added:** 2026-09-02

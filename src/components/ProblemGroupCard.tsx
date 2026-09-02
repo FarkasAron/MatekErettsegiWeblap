@@ -18,8 +18,8 @@ interface Props {
 
 /**
  * One card per problem: a single whole-problem image plus the collapsible
- * sub-part breakdown. Replaces the per-sub-part {@link "@/components/ProblemCard"}
- * for grouped views.
+ * sub-part breakdown. The grouped-view card for both `/feladatok` and
+ * `/feladatsor/[slug]`.
  */
 export default function ProblemGroupCard({ group, defaultExpandedTag }: Props) {
   const [open, setOpen] = useState(false);
@@ -165,7 +165,7 @@ export default function ProblemGroupCard({ group, defaultExpandedTag }: Props) {
       {/* ── Problem lightbox ─────────────────────────────────────────── */}
       {open && group.problem_image_url && (
         <div
-          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm overflow-y-auto animate-fade-in"
+          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm overflow-y-auto animate-fade-in no-print"
           onClick={() => setOpen(false)}
         >
           <div className="min-h-full flex items-center justify-center p-4 sm:p-8">
@@ -230,7 +230,7 @@ export default function ProblemGroupCard({ group, defaultExpandedTag }: Props) {
       {/* ── Answer lightbox ──────────────────────────────────────────── */}
       {answerOpen && answerUrl && (
         <div
-          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm overflow-y-auto animate-fade-in"
+          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm overflow-y-auto animate-fade-in no-print"
           onClick={() => setAnswerOpen(false)}
         >
           <div className="min-h-full flex items-center justify-center p-4 sm:p-8">

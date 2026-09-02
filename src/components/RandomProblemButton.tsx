@@ -102,7 +102,7 @@ export default function RandomProblemButton() {
       {/* ── Problem modal ───────────────────────────────────────────── */}
       {group && (
         <div
-          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-fade-in"
+          className="fixed inset-0 z-50 bg-black/88 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-fade-in no-print"
           onClick={() => { setGroup(null); setAnswerOpen(false); }}
         >
           <div
